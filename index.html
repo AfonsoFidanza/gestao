@@ -1406,6 +1406,23 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="salario-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="salario-modal-title">Já recebeste?</div>
+    <div class="modal-body">
+      <p class="helptext" style="margin-top:-4px;">Diz-nos que dia caiu na conta este mês, e tornamos essa receita disponível já a partir de hoje, em vez de esperar pelo mês seguinte.</p>
+      <div class="field" style="margin-top:10px;">
+        <label>Dia em que recebeste</label>
+        <input type="date" id="salario-data">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="salario-cancel">Cancelar</button>
+      <button class="btn" id="salario-confirm">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="reset-modal-1">
   <div class="modal-box">
     <div class="modal-title">Tens a certeza?</div>
@@ -1771,31 +1788,25 @@ let state = defaultState();
 function defaultState(){
   const initial = {};
   ALL_ACCOUNT_KEYS.forEach(k => initial[k] = 0);
-  const startMonth = monthKey(new Date());
   return {
     initial,
     entries: [],
     transfers: [],
     future: [],
     investmentProducts: [],
-    recurring: [
-      { id: uid(), name:'Salário Afonso', kind:'receita', owner:'afonso', category:'Salário', essential:false, banco:undefined, amount:2250, startMonth, active:true, skippedMonths:[], overrides:{} },
-      { id: uid(), name:'Salário Leonor', kind:'receita', owner:'leonor', category:'Salário', essential:false, banco:undefined, amount:1350, startMonth, active:true, skippedMonths:[], overrides:{} },
-      { id: uid(), name:'Ajuda', kind:'receita', owner:'afonso', category:'Ajuda', essential:false, banco:undefined, amount:400, startMonth, active:true, skippedMonths:[], overrides:{} },
-      { id: uid(), name:'Prestação Casa', kind:'despesa', owner:'conjunto', category:'Habitação', essential:true, banco:undefined, splitType:'percentagem', splitPercentAfonso:66, payer:'afonso', amount:1132.67, startMonth, active:true, skippedMonths:[], overrides:{} }
-    ],
-    customCategories: { receita:['Ajuda'], despesa:[], futuras:[] },
-    customCategoryType: { 'Ajuda':'bill' },
+    recurring: [],
+    customCategories: { receita:[], despesa:[], futuras:[] },
+    customCategoryType: {},
     receivableStatus: {
-      afonso: { fixas: {month:null, amount:0, paid:true, lastConfirmed:null}, variaveis: {month:null, amount:0, paid:true, lastConfirmed:null} },
-      leonor: { fixas: {month:null, amount:0, paid:true, lastConfirmed:null}, variaveis: {month:null, amount:0, paid:true, lastConfirmed:null} }
+      afonso: { fixas: {month:null, amount:0, paid:true, lastConfirmed:null, skippedMonth:null, lastSkippedMonth:null}, variaveis: {month:null, amount:0, paid:true, lastConfirmed:null, skippedMonth:null, lastSkippedMonth:null} },
+      leonor: { fixas: {month:null, amount:0, paid:true, lastConfirmed:null, skippedMonth:null, lastSkippedMonth:null}, variaveis: {month:null, amount:0, paid:true, lastConfirmed:null, skippedMonth:null, lastSkippedMonth:null} }
     },
     savingsCongrats: { afonso:{}, leonor:{} },
     salaryChoice: { afonso:{}, leonor:{} },
     gainLossHistory: [],
     solar: { custoInstalacao: 0, registos: [] },
-    mortgage: { principalInicial: 335000, dataInicio: '', rate: 2.65, installment: 1132.67, pctPoupanca: 80, pctAmortizacao: 60, pctProdutos: 40, pctAnnualBonus: 0, idadeAfonso: 0, idadeLeonor: 0, startMonth: '2027-01', payer: 'afonso', houseValue: 0 },
-    settings: { personalBudget: { afonso:0, leonor:0 }, ownerNames: { afonso:'', leonor:'' }, projectionFolgaPct: 10, returnRates: { poupanca:1, investimento:5 }, irsJovemStartYear: { afonso: null, leonor: null }, desiredMonthlySavings: { afonso: null, leonor: null } }
+    mortgage: { principalInicial: 0, dataInicio: '', rate: 0, installment: 0, pctPoupanca: 80, pctAmortizacao: 60, pctProdutos: 40, pctAnnualBonus: 0, idadeAfonso: 0, idadeLeonor: 0, startMonth: '2027-01', payer: 'afonso', houseValue: 0 },
+    settings: { personalBudget: { afonso:0, leonor:0 }, ownerNames: { afonso:'', leonor:'' }, projectionFolgaPct: 10, returnRates: { poupanca:1, investimento:5 }, irsJovemStartYear: { afonso: null, leonor: null }, desiredMonthlySavings: { afonso: null, leonor: null }, lastIncomeConfirmedDate: { afonso: {}, leonor: {} } }
   };
 }
 
@@ -1809,13 +1820,17 @@ function loadFromParsed(parsed){
   merged.settings.returnRates = Object.assign({poupanca:1, investimento:5}, (parsed.settings||{}).returnRates||{});
   merged.settings.irsJovemStartYear = Object.assign({afonso:null, leonor:null}, (parsed.settings||{}).irsJovemStartYear||{});
   merged.settings.desiredMonthlySavings = Object.assign({afonso:null, leonor:null}, (parsed.settings||{}).desiredMonthlySavings||{});
+  merged.settings.lastIncomeConfirmedDate = {
+    afonso: Object.assign({}, ((parsed.settings||{}).lastIncomeConfirmedDate||{}).afonso||{}),
+    leonor: Object.assign({}, ((parsed.settings||{}).lastIncomeConfirmedDate||{}).leonor||{})
+  };
   merged.gainLossHistory = Array.isArray(parsed.gainLossHistory) ? parsed.gainLossHistory : [];
   merged.solar = Object.assign({ custoInstalacao: 0, registos: [] }, parsed.solar||{});
   merged.solar.registos = Array.isArray(merged.solar.registos) ? merged.solar.registos : [];
   merged.investmentProducts = merged.investmentProducts || [];
   merged.customCategories = Object.assign({receita:[],despesa:[],futuras:[]}, parsed.customCategories||{});
   merged.customCategoryType = Object.assign({}, parsed.customCategoryType||{});
-  const defaultBucket = () => ({month:null, amount:0, paid:true, lastConfirmed:null});
+  const defaultBucket = () => ({month:null, amount:0, paid:true, lastConfirmed:null, skippedMonth:null, lastSkippedMonth:null});
   merged.receivableStatus = { afonso: { fixas: defaultBucket(), variaveis: defaultBucket() }, leonor: { fixas: defaultBucket(), variaveis: defaultBucket() } };
   OWNERS.forEach(o=>{
     const old = (parsed.receivableStatus||{})[o];
@@ -2167,10 +2182,22 @@ function computeMonthlyAggregatesOwner(owner){
   return map;
 }
 function getSortedMonthKeys(map){ return Object.keys(map).sort(); }
+function computeCycleStart(owner){
+  const confirmed = Object.values(state.settings.lastIncomeConfirmedDate[owner] || {}).filter(Boolean);
+  if(confirmed.length === 0) return null;
+  return confirmed.sort().reverse()[0]; // a confirmação mais recente, entre todas as categorias
+}
 function computeActualPersonalSpend(owner, mKey){
+  const isCurrentMonth = mKey === monthKey(new Date());
+  const cycleStart = isCurrentMonth ? computeCycleStart(owner) : null;
+  const today = todayISO();
   let total = 0;
   state.entries.forEach(e=>{
-    if(e.type !== 'despesa' || e.date.slice(0,7) !== mKey) return;
+    if(e.type !== 'despesa') return;
+    // Se já confirmaste quando recebeste este mês, o "mês pessoal" conta a partir dessa data
+    // (o teu ciclo real), em vez do dia 1 do calendário. Meses passados continuam por calendário.
+    const inWindow = cycleStart ? (e.date >= cycleStart && e.date <= today) : (e.date.slice(0,7) === mKey);
+    if(!inWindow) return;
     if(e.excludeFromBudget) return; // marcada manualmente para não contar para o orçamento pessoal
     if(LIVE_ACTUAL_BILL_CATEGORIES.has(e.category)) return; // already counted in Contas fixas (Água/Luz)
     if(e.templateId){
@@ -2208,19 +2235,15 @@ function resolveCategoryForOwnerMonth(owner, category, mKey){
 }
 function computeLaggedIncomeForOwner(owner, mKeyParam){
   const mKey = mKeyParam || monthKey(new Date());
-  const prevMonth = addMonths(mKey, -1);
-  // ALL income lags one month — it's last month's money that you actually live on this month.
-  // Uses the real entries already inserted for that month (recurring-generated or manual),
-  // deduped per category (only one entry per category counts, even if there are duplicates).
-  const categoriesWithIncome = new Set();
-  state.entries.forEach(e=>{
-    if(e.type==='receita' && e.owner===owner && !e.immediate && e.date.slice(0,7)===prevMonth) categoriesWithIncome.add(e.category);
-  });
+  // "Receita disponível" já não assume nada do mês anterior — só conta o que confirmaste
+  // explicitamente este mês (o botão "Já recebi: [categoria]"). Uma categoria que ainda não
+  // confirmaste conta como 0€, em vez de adivinhar o valor do mês passado.
+  // Só entram receitas ligadas a uma recorrência ativa — nunca receitas avulsas/pontuais
+  // (ex: um reembolso de seguro), mesmo que estejam marcadas como "espontâneas".
+  const isFixedIncomeEntry = (e) => e.templateId && state.recurring.some(t => t.id === e.templateId && t.active && t.kind === 'receita');
   let income = 0;
-  categoriesWithIncome.forEach(cat=>{ income += resolveCategoryForOwnerMonth(owner, cat, prevMonth); });
-  // Receitas espontâneas não esperam pelo mês seguinte — contam já para o mês atual.
   state.entries.forEach(e=>{
-    if(e.type==='receita' && e.owner===owner && e.immediate && e.date.slice(0,7)===mKey) income += Number(e.amount)||0;
+    if(e.type==='receita' && e.owner===owner && e.immediate && e.date.slice(0,7)===mKey && isFixedIncomeEntry(e)) income += Number(e.amount)||0;
   });
   return income;
 }
@@ -2250,9 +2273,14 @@ function computeFixedMonthlyForOwner(owner, mKeyParam){
   return { income, bills, plannedSavings };
 }
 function computeActualSavedThisMonth(owner, mKey){
+  const isCurrentMonth = mKey === monthKey(new Date());
+  const cycleStart = isCurrentMonth ? computeCycleStart(owner) : null;
+  const today = todayISO();
   let net = 0;
   state.transfers.forEach(t=>{
-    if(t.fromOwner !== owner || t.toOwner !== owner || t.date.slice(0,7) !== mKey) return;
+    if(t.fromOwner !== owner || t.toOwner !== owner) return;
+    const inWindow = cycleStart ? (t.date >= cycleStart && t.date <= today) : (t.date.slice(0,7) === mKey);
+    if(!inWindow) return;
     if(t.considerarPoupanca === false) return;
     const toSavings = (t.toType==='poupanca' || t.toType==='investimento');
     const fromSavings = (t.fromType==='poupanca' || t.fromType==='investimento');
@@ -2747,6 +2775,10 @@ function renderReceivableGroupHtml(owner, group, label){
         <button class="btn small secondary" data-receivable-no="${owner}|${group}">Não</button>
         <button class="btn small" data-receivable-yes="${owner}|${group}">Sim</button>
       </div>`;
+  } else if(st.skippedMonth === liveMonth){
+    html = `
+      <p style="margin:0; font-size:14px;"><strong>${label}</strong> — ignoraste este mês (${monthLabel(liveMonth)}), não vais pedir este valor.</p>
+      <p class="helptext">A contagem já está a recomeçar sozinha para o mês seguinte.</p>`;
   } else if(liveAmount <= 0.005){
     html = `<div class="warn-ok">Nada de "${label}" a receber de ${OWNER_LABEL[other]} de momento.</div>`;
   } else {
@@ -2757,12 +2789,18 @@ function renderReceivableGroupHtml(owner, group, label){
       <p style="margin:0; font-size:14px;"><strong>${label}</strong> — a acumular este mês (${monthLabel(liveMonth)}): <span class="gold" style="font-family:var(--font-mono); font-size:17px;">${fmtMoney(liveAmount)}</span></p>
       ${breakdownHtml}
       <p class="helptext" style="margin-bottom:10px;">${note} Quando quiseres pedir o pagamento a ${OWNER_LABEL[other]} (não precisas de esperar pelo fim do mês), fecha o valor.</p>
-      <button class="btn small" data-receivable-close="${owner}|${group}">Fechar valor e pedir pagamento</button>`;
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn small" data-receivable-close="${owner}|${group}">Fechar valor e pedir pagamento</button>
+        <button class="btn small secondary" data-receivable-skip="${owner}|${group}">Ignorar e passar para o mês seguinte</button>
+      </div>`;
   }
   const upsHtml = st.lastConfirmed
     ? `<div style="margin-top:10px;"><button class="btn small secondary" data-receivable-undo="${owner}|${group}">↺ Ups, foi engano</button></div>`
     : '';
-  return html + upsHtml;
+  const undoSkipHtml = (st.lastSkippedMonth != null)
+    ? `<div style="margin-top:10px;"><button class="btn small secondary" data-receivable-undo-skip="${owner}|${group}">↺ Afinal não quero ignorar</button></div>`
+    : '';
+  return html + upsHtml + undoSkipHtml;
 }
 function renderReceivable(owner){
   const container = document.getElementById(`${owner}-receivable`);
@@ -2801,6 +2839,29 @@ function renderReceivable(owner){
       saveState();
       renderAll();
       showToast('Valor fechado — pede a confirmação quando for pago.');
+    });
+  });
+  container.querySelectorAll('[data-receivable-skip]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [o, group] = btn.getAttribute('data-receivable-skip').split('|');
+      const st = state.receivableStatus[o][group];
+      const mKey = monthKey(new Date());
+      st.skippedMonth = mKey;
+      st.lastSkippedMonth = mKey;
+      saveState();
+      renderAll();
+      showToast('Mês ignorado — a contagem recomeça sozinha no mês seguinte.');
+    });
+  });
+  container.querySelectorAll('[data-receivable-undo-skip]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [o, group] = btn.getAttribute('data-receivable-undo-skip').split('|');
+      const st = state.receivableStatus[o][group];
+      st.skippedMonth = null;
+      st.lastSkippedMonth = null;
+      saveState();
+      renderAll();
+      showToast('Voltámos atrás — o valor deste mês volta a aparecer.');
     });
   });
   container.querySelectorAll('[data-receivable-yes]').forEach(btn=>{
@@ -2846,12 +2907,27 @@ function renderReceivable(owner){
   });
 }
 function explainZeroFixedIncome(owner, mKey){
-  const prevMonth = addMonths(mKey, -1);
   const recurringCats = [...new Set(state.recurring.filter(t => t.active && t.kind==='receita' && t.owner===owner).map(t=>t.category))];
   if(recurringCats.length === 0) return null;
-  const missingCats = recurringCats.filter(cat => findCategoryEntries(owner, cat, prevMonth).length === 0);
+  const confirmedCats = new Set();
+  state.entries.forEach(e=>{
+    if(e.type==='receita' && e.owner===owner && e.immediate && e.date.slice(0,7)===mKey && e.templateId){
+      const tpl = state.recurring.find(t => t.id === e.templateId);
+      if(tpl && tpl.active && tpl.kind === 'receita') confirmedCats.add(e.category);
+    }
+  });
+  const missingCats = recurringCats.filter(cat => !confirmedCats.has(cat));
   if(missingCats.length === 0) return null;
-  return `Ainda não há ${missingCats.join(', ')} registado(a) em ${monthLabel(prevMonth)} — toda a receita usa sempre o mês anterior (é esse dinheiro que vives este mês). Assim que ${monthLabel(mKey)} passar, isto resolve-se sozinho. Se quiseres já, cria manualmente um lançamento dessa categoria datado em ${monthLabel(prevMonth)}.`;
+  return `Ainda não confirmaste ${missingCats.join(', ')} este mês — usa o botão "Já recebi" abaixo assim que a receita cair na conta, para contar.`;
+}
+function renderIncomeConfirmButtons(owner){
+  const cats = [...new Set(state.recurring.filter(t => t.active && t.kind==='receita' && t.owner===owner).map(t => t.category))];
+  if(cats.length === 0){
+    return `<p class="helptext" style="margin:4px 0;">Ainda não tens nenhuma recorrência de receita configurada para ${OWNER_LABEL[owner]} — cria uma em <strong>Receitas &amp; Despesas → Recorrências</strong> para poderes confirmar quando recebes uma delas.</p>`;
+  }
+  return cats.map(cat =>
+    `<button class="btn small" style="background:var(--income); color:#FFFFFF; margin-right:6px; margin-bottom:6px;" data-salario-recebido="${owner}|${escapeHtml(cat)}">💶 Já recebi: ${escapeHtml(cat)}</button>`
+  ).join('');
 }
 function renderSavingsAdvice(owner){
   const input = document.getElementById(`${owner}-budget`);
@@ -2866,8 +2942,9 @@ function renderSavingsAdvice(owner){
   const pctSaved = recommended > 0 ? Math.min(100, (a.actualSaved/recommended)*100) : (a.actualSaved>0 ? 100 : 0);
   const box = document.getElementById(`${owner}-advice`);
   box.innerHTML = `
-    <div class="allowance-row"><span>Receita fixa mensal <span class="micro" style="font-weight:normal;">(rendimento de ${monthLabel(addMonths(mKey,-1))})</span></span><span class="num pos">${fmtMoney(a.income)}</span></div>
+    <div class="allowance-row"><span>Receita fixa mensal <span class="micro" style="font-weight:normal;">(só o que confirmaste este mês)</span></span><span class="num pos">${fmtMoney(a.income)}</span></div>
     ${a.income === 0 && explainZeroFixedIncome(owner, mKey) ? `<div class="micro" style="color:var(--savings); margin-top:-4px; margin-bottom:8px;">${explainZeroFixedIncome(owner, mKey)}</div>` : ''}
+    <div style="margin:6px 0 4px 0;">${renderIncomeConfirmButtons(owner)}</div>
     <div class="allowance-row"><span>Contas fixas (incluindo divididas)</span><span class="num neg">- ${fmtMoney(a.bills)}</span></div>
     <div class="allowance-row"><span>Orçamento pessoal definido</span><span class="num neg">- ${fmtMoney(a.budget)}</span></div>
     <div class="allowance-row total" style="color:var(--savings);"><span>Deves colocar nas poupanças</span><span class="num">${fmtMoney(recommended)}</span></div>
@@ -5243,6 +5320,50 @@ function openNewCategoryModal(kind, selectId){
 document.getElementById('newcat-cancel').addEventListener('click', ()=>{
   document.getElementById('newcat-modal').classList.remove('show');
   newCatContext = null;
+});
+let salarioModalOwner = null;
+let salarioModalCategory = null;
+document.addEventListener('click', (ev)=>{
+  const btn = ev.target.closest('[data-salario-recebido]');
+  if(!btn) return;
+  const [o, cat] = btn.getAttribute('data-salario-recebido').split('|');
+  salarioModalOwner = o;
+  salarioModalCategory = cat;
+  document.getElementById('salario-modal-title').textContent = `Já recebeste "${cat}"?`;
+  document.getElementById('salario-data').value = todayISO();
+  document.getElementById('salario-modal').classList.add('show');
+});
+document.getElementById('salario-cancel').addEventListener('click', ()=>{
+  document.getElementById('salario-modal').classList.remove('show');
+  salarioModalOwner = null;
+  salarioModalCategory = null;
+});
+document.getElementById('salario-confirm').addEventListener('click', ()=>{
+  if(!salarioModalOwner || !salarioModalCategory) return;
+  const data = document.getElementById('salario-data').value;
+  if(!data){ showToast('Escolhe o dia em que recebeste.'); return; }
+  const mKey = monthKey(new Date());
+  const entry = state.entries.find(e =>
+    e.type === 'receita' && e.owner === salarioModalOwner && e.category === salarioModalCategory &&
+    e.date.slice(0,7) === mKey && e.templateId
+  );
+  if(!entry){
+    showToast('Não encontrei essa receita já lançada este mês — confirma se a recorrência já gerou o lançamento.');
+    document.getElementById('salario-modal').classList.remove('show');
+    salarioModalOwner = null;
+    salarioModalCategory = null;
+    return;
+  }
+  entry.date = data;
+  entry.immediate = true;
+  entry.manuallyEdited = true;
+  state.settings.lastIncomeConfirmedDate[salarioModalOwner][salarioModalCategory] = data;
+  saveState();
+  renderAll();
+  document.getElementById('salario-modal').classList.remove('show');
+  showToast(`"${salarioModalCategory}" disponível já a partir de hoje.`);
+  salarioModalOwner = null;
+  salarioModalCategory = null;
 });
 document.getElementById('newcat-confirm').addEventListener('click', ()=>{
   if(!newCatContext) return;
