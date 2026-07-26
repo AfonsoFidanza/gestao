@@ -2191,6 +2191,21 @@ function computeCycleStart(owner){
   if(confirmed.length === 0) return null;
   return confirmed.sort().reverse()[0]; // a confirmação mais recente, entre todas as categorias
 }
+function computeCycleExpense(owner, mKey){
+  const isCurrentMonth = mKey === monthKey(new Date());
+  const cycleStart = isCurrentMonth ? computeCycleStart(owner) : null;
+  const today = todayISO();
+  let total = 0;
+  state.entries.forEach(e=>{
+    if(e.type !== 'despesa') return;
+    const inWindow = cycleStart ? (e.date >= cycleStart && e.date <= today) : (e.date.slice(0,7) === mKey);
+    if(!inWindow) return;
+    const amt = Number(e.amount)||0;
+    if(e.owner === owner) total += amt;
+    else if(e.owner === 'conjunto') total += splitShares(amt, e.splitType, e.splitPercentAfonso)[owner];
+  });
+  return total;
+}
 function computeActualPersonalSpend(owner, mKey){
   const isCurrentMonth = mKey === monthKey(new Date());
   const cycleStart = isCurrentMonth ? computeCycleStart(owner) : null;
@@ -2670,10 +2685,11 @@ function renderDashboard(){
   const nowKey = monthKey(new Date());
   const aggH = computeMonthlyAggregatesHousehold();
   const thisH = aggH[nowKey] || {income:0, expense:0};
+  const cycleExpenseH = computeCycleExpense('afonso', nowKey) + computeCycleExpense('leonor', nowKey);
   const laggedIncomeH = computeLaggedIncomeForOwner('afonso', nowKey) + computeLaggedIncomeForOwner('leonor', nowKey);
-  const netH = laggedIncomeH - thisH.expense;
+  const netH = laggedIncomeH - cycleExpenseH;
   document.getElementById('stat-conjunto-income').textContent = fmtMoney(laggedIncomeH);
-  document.getElementById('stat-conjunto-expense').textContent = fmtMoney(thisH.expense);
+  document.getElementById('stat-conjunto-expense').textContent = fmtMoney(cycleExpenseH);
   const netHEl = document.getElementById('stat-conjunto-net');
   netHEl.textContent = fmtMoney(netH);
   netHEl.className = 'val ' + (netH>=0?'pos':'neg');
@@ -2681,10 +2697,11 @@ function renderDashboard(){
   OWNERS.forEach(owner=>{
     const agg = computeMonthlyAggregatesOwner(owner);
     const thisMonth = agg[nowKey] || { income:0, expense:0 };
+    const cycleExpense = computeCycleExpense(owner, nowKey);
     const laggedIncome = computeLaggedIncomeForOwner(owner, nowKey);
-    const net = laggedIncome - thisMonth.expense;
+    const net = laggedIncome - cycleExpense;
     document.getElementById(`stat-${owner}-income`).textContent = fmtMoney(laggedIncome);
-    document.getElementById(`stat-${owner}-expense`).textContent = fmtMoney(thisMonth.expense);
+    document.getElementById(`stat-${owner}-expense`).textContent = fmtMoney(cycleExpense);
     const netEl = document.getElementById(`stat-${owner}-net`);
     netEl.textContent = fmtMoney(net);
     netEl.className = 'val ' + (net>=0?'pos':'neg');
