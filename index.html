@@ -383,9 +383,15 @@
           <div class="stat"><div class="lbl">Despesa · este mês</div><div class="val neg" id="stat-afonso-expense">€0,00</div></div>
           <div class="stat"><div class="lbl">Saldo do mês</div><div class="val" id="stat-afonso-net">€0,00</div></div>
         </div>
-        <div class="card only-dual" id="afonso-receivable-card">
-          <div class="card-title">A receber</div>
-          <div id="afonso-receivable"></div>
+        <div class="grid grid-2">
+          <div class="card only-dual" id="afonso-receivable-card">
+            <div class="card-title">A receber</div>
+            <div id="afonso-receivable"></div>
+          </div>
+          <div class="card only-dual" id="afonso-receivable-total-card">
+            <div class="card-title">Total a receber</div>
+            <div id="afonso-receivable-total"></div>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">Quanto devo poupar este mês</div>
@@ -428,9 +434,15 @@
           <div class="stat"><div class="lbl">Despesa · este mês</div><div class="val neg" id="stat-leonor-expense">€0,00</div></div>
           <div class="stat"><div class="lbl">Saldo do mês</div><div class="val" id="stat-leonor-net">€0,00</div></div>
         </div>
-        <div class="card only-dual" id="leonor-receivable-card">
-          <div class="card-title">A receber</div>
-          <div id="leonor-receivable"></div>
+        <div class="grid grid-2">
+          <div class="card only-dual" id="leonor-receivable-card">
+            <div class="card-title">A receber</div>
+            <div id="leonor-receivable"></div>
+          </div>
+          <div class="card only-dual" id="leonor-receivable-total-card">
+            <div class="card-title">Total a receber</div>
+            <div id="leonor-receivable-total"></div>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">Quanto devo poupar este mês</div>
@@ -2735,6 +2747,7 @@ function renderDashboard(){
 
     renderSavingsAdvice(owner);
     renderReceivable(owner);
+    renderReceivableTotal(owner);
 
     const chart = buildLineChart(tl.slice(-24).map(r=>({label:monthLabel(r.month), value: ownerTotal(r, owner)})), { color: owner==='afonso' ? 'var(--afonso)' : 'var(--leonor)' });
     document.getElementById(`${owner}-chart`).innerHTML = chart;
@@ -2850,6 +2863,28 @@ function renderReceivableGroupHtml(owner, group, label){
     ? `<div style="margin-top:10px;"><button class="btn small secondary" data-receivable-undo-skip="${owner}|${group}">↺ Afinal não quero ignorar</button></div>`
     : '';
   return html + upsHtml + undoSkipHtml;
+}
+function renderReceivableTotal(owner){
+  const container = document.getElementById(`${owner}-receivable-total`);
+  const liveMonth = monthKey(new Date());
+  let html = '';
+  let total = 0;
+  ['fixas','variaveis'].forEach(group=>{
+    const st = state.receivableStatus[owner][group];
+    const label = RECEIVABLE_GROUPS[group].label;
+    let amt;
+    if(!st.paid){
+      amt = st.amount; // valor fechado, à espera de confirmação
+    } else if(st.skippedMonth === liveMonth){
+      amt = 0; // ignoraste este mês
+    } else {
+      amt = computeConjuntoPayerSum(owner, liveMonth, group);
+    }
+    total += amt;
+    html += `<div class="allowance-row"><span>${label}</span><span class="num">${fmtMoney(amt)}</span></div>`;
+  });
+  html += `<div class="allowance-row" style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px; font-weight:600;"><span>Total</span><span class="num gold">${fmtMoney(total)}</span></div>`;
+  container.innerHTML = html;
 }
 function renderReceivable(owner){
   const container = document.getElementById(`${owner}-receivable`);
