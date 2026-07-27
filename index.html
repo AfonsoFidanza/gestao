@@ -478,6 +478,19 @@
           <div id="bank-warnings-conjunto"></div>
         </div>
         <div class="card">
+          <div class="card-title">Gasto pessoal por mês</div>
+          <div class="form-row" style="margin-bottom:12px;">
+            <div class="field" style="max-width:200px;">
+              <label>Ver de</label>
+              <select id="gasto-pessoal-chart-owner">
+                <option value="afonso">Afonso</option>
+                <option value="leonor">Leonor</option>
+              </select>
+            </div>
+          </div>
+          <div id="gasto-pessoal-chart"></div>
+        </div>
+        <div class="card">
           <div class="card-title">Histórico de pagamentos confirmados</div>
           <p class="helptext" style="margin-top:-6px;">Todos os "Sim, já pagou" que já confirmaram, nas duas direções. Podes desfazer qualquer um, não só o último.</p>
           <div id="reembolso-history"></div>
@@ -2191,6 +2204,16 @@ function computeCycleStart(owner){
   if(confirmed.length === 0) return null;
   return confirmed.sort().reverse()[0]; // a confirmação mais recente, entre todas as categorias
 }
+function renderGastoPessoalChart(){
+  const owner = document.getElementById('gasto-pessoal-chart-owner').value;
+  const nowKey = monthKey(new Date());
+  const months = [];
+  for(let i=11; i>=0; i--) months.push(addMonths(nowKey, -i));
+  const points = months.map(mKey => ({ label: monthLabel(mKey).split(' ')[0], value: computeActualPersonalSpend(owner, mKey) }));
+  const container = document.getElementById('gasto-pessoal-chart');
+  container.innerHTML = buildLineChart(points, { height: 220, color: owner==='afonso' ? 'var(--afonso)' : 'var(--leonor)' });
+}
+document.getElementById('gasto-pessoal-chart-owner').addEventListener('change', renderGastoPessoalChart);
 function computeCycleExpense(owner, mKey){
   const isCurrentMonth = mKey === monthKey(new Date());
   const cycleStart = isCurrentMonth ? computeCycleStart(owner) : null;
@@ -2721,6 +2744,7 @@ function renderDashboard(){
   renderSavingsComparison('leonor');
   renderNetWorth();
   renderLiquidityTiers();
+  renderGastoPessoalChart();
 
   const mKeyNow = monthKey(new Date());
   renderCategoryBreakdown('afonso-category-breakdown', (computeMonthlyAggregatesOwner('afonso')[mKeyNow]||{}).byCategory);
