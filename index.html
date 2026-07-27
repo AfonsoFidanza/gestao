@@ -2200,9 +2200,13 @@ function computeMonthlyAggregatesOwner(owner){
 }
 function getSortedMonthKeys(map){ return Object.keys(map).sort(); }
 function computeCycleStart(owner){
+  // Usa a PRIMEIRA confirmação do mês (a mais antiga), não a mais recente — senão, confirmar
+  // uma categoria mais tarde (ex: Ajuda no dia 27) empurrava o início do ciclo para a frente,
+  // excluindo coisas que já tinham acontecido dentro do ciclo certo (ex: uma transferência do
+  // dia 25, que devia contar porque o Salário já tinha sido confirmado no dia 24).
   const confirmed = Object.values(state.settings.lastIncomeConfirmedDate[owner] || {}).filter(Boolean);
   if(confirmed.length === 0) return null;
-  return confirmed.sort().reverse()[0]; // a confirmação mais recente, entre todas as categorias
+  return confirmed.sort()[0];
 }
 function renderGastoPessoalChart(){
   const owner = document.getElementById('gasto-pessoal-chart-owner').value;
