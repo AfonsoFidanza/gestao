@@ -2896,7 +2896,7 @@ function renderReceivableGroupHtml(owner, group, label){
   const upsHtml = st.lastConfirmed
     ? `<div style="margin-top:10px;"><button class="btn small secondary" data-receivable-undo="${owner}|${group}">↺ Ups, foi engano</button></div>`
     : '';
-  const undoSkipHtml = (st.lastSkippedMonth != null)
+  const undoSkipHtml = (st.lastSkippedMonth != null || isAdvanced)
     ? `<div style="margin-top:10px;"><button class="btn small secondary" data-receivable-undo-skip="${owner}|${group}">↺ Afinal não quero ignorar</button></div>`
     : '';
   return html + upsHtml + undoSkipHtml;
@@ -2970,11 +2970,21 @@ function renderReceivable(owner){
       const [o, group] = btn.getAttribute('data-receivable-skip').split('|');
       const st = state.receivableStatus[o][group];
       const mKey = monthKey(new Date());
-      st.skippedMonth = mKey;
-      st.lastSkippedMonth = mKey;
-      saveState();
-      renderAll();
-      showToast('Mês ignorado — a contagem recomeça sozinha no mês seguinte.');
+      if(group === 'fixas'){
+        // Renda + Internet são valores fixos e previsíveis — "ignorar" avança logo para o
+        // valor real do mês seguinte, tal como já acontece ao confirmares "Já recebi".
+        st.advancedToMonth = addMonths(mKey, 1);
+        st.skippedMonth = null;
+        saveState();
+        renderAll();
+        showToast('Avançou para o valor real do mês seguinte.');
+      } else {
+        st.skippedMonth = mKey;
+        st.lastSkippedMonth = mKey;
+        saveState();
+        renderAll();
+        showToast('Mês ignorado — a contagem recomeça sozinha no mês seguinte.');
+      }
     });
   });
   container.querySelectorAll('[data-receivable-undo-skip]').forEach(btn=>{
@@ -2983,6 +2993,7 @@ function renderReceivable(owner){
       const st = state.receivableStatus[o][group];
       st.skippedMonth = null;
       st.lastSkippedMonth = null;
+      st.advancedToMonth = null;
       saveState();
       renderAll();
       showToast('Voltámos atrás — o valor deste mês volta a aparecer.');
