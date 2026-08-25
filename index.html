@@ -697,12 +697,7 @@
                 <input type="checkbox" id="t-proximo-mes">
                 <label for="t-proximo-mes">É para o mês seguinte</label>
               </div>
-              <div class="field checkbox" id="t-espontanea-wrap" style="flex:1; display:none;">
-                <input type="checkbox" id="t-espontanea">
-                <label for="t-espontanea">Receita espontânea (conta já para este mês)</label>
-              </div>
             </div>
-            <p class="helptext" id="t-receita-lag-note" style="display:none; margin-top:-6px;">Receitas usam sempre a data real — o "Receita fixa mensal" já conta este valor automaticamente para o mês seguinte, sem precisares de marcar nada. Se marcares "espontânea", esta entra já no mês atual, sem esperar.</p>
             <button type="submit" class="btn" id="form-transacao-submit">Adicionar registo</button>
             <button type="button" class="btn secondary" id="form-transacao-cancel" style="display:none;">Cancelar edição</button>
           </form>
@@ -2039,15 +2034,29 @@ const RECEIVABLE_GROUPS = {
   fixas: { label: 'Renda + Internet', categories: new Set(['Renda','Internet']) },
   variaveis: { label: 'Água + Luz', categories: new Set(['Água','Luz']) }
 };
+// Categorias que nunca devem acumular mais do que uma vez por ciclo — mesmo que fiquem por
+// confirmar vários meses seguidos, só se pede a mais recente (ex: nunca pedir 2 rendas de uma vez).
+const ONCE_PER_CYCLE_CATEGORIES = new Set(['Renda']);
+function collectConjuntoPayerEntriesSince(owner, sinceDate, group){
+  const cats = RECEIVABLE_GROUPS[group].categories;
+  const today = todayISO();
+  let matches = state.entries.filter(e =>
+    e.type === 'despesa' && e.owner === 'conjunto' && e.payer === owner &&
+    cats.has(e.category) && e.date > sinceDate && e.date <= today
+  );
+  ONCE_PER_CYCLE_CATEGORIES.forEach(cat=>{
+    const inCat = matches.filter(e => e.category === cat);
+    if(inCat.length > 1){
+      const latest = inCat.reduce((a,b) => a.date >= b.date ? a : b);
+      matches = matches.filter(e => e.category !== cat || e.id === latest.id);
+    }
+  });
+  return matches;
+}
 function computeConjuntoPayerSumSince(owner, sinceDate, group){
   const other = otherOwnerOf(owner);
   let total = 0;
-  const cats = RECEIVABLE_GROUPS[group].categories;
-  const today = todayISO();
-  state.entries.forEach(e=>{
-    if(e.type !== 'despesa' || e.owner !== 'conjunto' || e.payer !== owner) return;
-    if(!cats.has(e.category)) return;
-    if(!(e.date > sinceDate && e.date <= today)) return;
+  collectConjuntoPayerEntriesSince(owner, sinceDate, group).forEach(e=>{
     let amt = Number(e.amount)||0;
     if(e.templateId){
       const tpl = state.recurring.find(t => t.id === e.templateId);
@@ -2062,13 +2071,8 @@ function computeConjuntoPayerSumSince(owner, sinceDate, group){
 }
 function computeConjuntoPayerBreakdownSince(owner, sinceDate, group){
   const other = otherOwnerOf(owner);
-  const cats = RECEIVABLE_GROUPS[group].categories;
-  const today = todayISO();
   const byCategory = {};
-  state.entries.forEach(e=>{
-    if(e.type !== 'despesa' || e.owner !== 'conjunto' || e.payer !== owner) return;
-    if(!cats.has(e.category)) return;
-    if(!(e.date > sinceDate && e.date <= today)) return;
+  collectConjuntoPayerEntriesSince(owner, sinceDate, group).forEach(e=>{
     let amt = Number(e.amount)||0;
     if(e.templateId){
       const tpl = state.recurring.find(t => t.id === e.templateId);
@@ -2232,11 +2236,8 @@ function computeBalancesTimeline(){
 
   const byMonth = {};
   state.entries.forEach(e=>{
-    // Income becomes available the month AFTER it's earned (same rule as "Receita disponível") —
-    // so the account balance itself stays consistent with that, instead of showing money as
-    // already spendable the instant it's recorded. Exceção: receitas marcadas "espontânea"
-    // contam já para o próprio mês, sem desfasamento.
-    const m = (e.type === 'receita' && !e.immediate) ? addMonths(e.date.slice(0,7), 1) : e.date.slice(0,7);
+    // Todas as receitas contam já no mês em que são registadas — sem desfasamento.
+    const m = e.date.slice(0,7);
     (byMonth[m] ||= { entries:[], transfers:[] }).entries.push(e);
   });
   state.transfers.forEach(t=>{ const m = t.date.slice(0,7); (byMonth[m] ||= { entries:[], transfers:[] }).transfers.push(t); });
@@ -3377,10 +3378,7 @@ function populateCategorySelect(keepValue){
   document.getElementById('t-essencial').checked = ESSENTIAL_DEFAULT.has(sel.value) || state.customCategoryType[sel.value] === 'bill';
   document.getElementById('t-excluir-budget-wrap').style.display = tipo === 'despesa' ? 'flex' : 'none';
   document.getElementById('t-proximo-mes-wrap').style.display = tipo === 'despesa' ? 'flex' : 'none';
-  document.getElementById('t-receita-lag-note').style.display = tipo === 'receita' ? 'block' : 'none';
-  document.getElementById('t-espontanea-wrap').style.display = tipo === 'receita' ? 'flex' : 'none';
   if(tipo === 'receita') document.getElementById('t-proximo-mes').checked = false;
-  if(tipo === 'despesa') document.getElementById('t-espontanea').checked = false;
   if(tipo === 'receita') document.getElementById('t-excluir-budget').checked = false;
 }
 
@@ -4785,7 +4783,6 @@ function startEditEntry(id){
     toggleTransSplitWrap();
   }
   document.getElementById('t-proximo-mes').checked = false;
-  document.getElementById('t-espontanea').checked = !!e.immediate;
   document.getElementById('t-excluir-budget').checked = !!e.excludeFromBudget;
   document.getElementById('form-transacao-title').textContent = 'A editar registo';
   document.getElementById('form-transacao-submit').textContent = 'Guardar alterações';
@@ -4819,7 +4816,6 @@ document.getElementById('form-transacao').addEventListener('submit', (ev)=>{
   const splitPct = parseFloat(document.getElementById('t-split-pct').value) || 50;
   const payer = document.getElementById('t-payer').value;
   const proximoMes = document.getElementById('t-proximo-mes').checked;
-  const espontanea = document.getElementById('t-espontanea').checked;
   const excluirBudget = document.getElementById('t-excluir-budget').checked;
 
   if(!data || isNaN(valor) || valor <= 0){ showToast('Verifica a data e o valor introduzidos.'); return; }
@@ -4842,7 +4838,7 @@ document.getElementById('form-transacao').addEventListener('submit', (ev)=>{
       e.splitType = quem==='conjunto' ? splitType : undefined;
       e.splitPercentAfonso = quem==='conjunto' ? splitPct : undefined;
       e.payer = (tipo==='despesa' && quem==='conjunto') ? payer : undefined;
-      e.immediate = tipo==='receita' ? espontanea : undefined;
+      e.immediate = tipo==='receita' ? true : undefined;
       e.excludeFromBudget = tipo==='despesa' ? excluirBudget : undefined;
       // Uma vez editado à mão, a sincronização automática do mês em curso deixa de mexer neste
       // registo (a tua edição vence) — mas a ligação à recorrência mantém-se, para a app não
@@ -4863,7 +4859,7 @@ document.getElementById('form-transacao').addEventListener('submit', (ev)=>{
     splitType: quem==='conjunto' ? splitType : undefined,
     splitPercentAfonso: quem==='conjunto' ? splitPct : undefined,
     payer: (tipo==='despesa' && quem==='conjunto') ? payer : undefined,
-    immediate: tipo==='receita' ? espontanea : undefined,
+    immediate: tipo==='receita' ? true : undefined,
     excludeFromBudget: tipo==='despesa' ? excluirBudget : undefined
   };
   state.entries.push(entry);
@@ -4873,7 +4869,6 @@ document.getElementById('form-transacao').addEventListener('submit', (ev)=>{
   document.getElementById('t-data').value = todayISO();
   document.getElementById('t-data-btn').textContent = formatDatePT(todayISO());
   document.getElementById('t-proximo-mes').checked = false;
-  document.getElementById('t-espontanea').checked = false;
   document.getElementById('t-excluir-budget').checked = false;
   renderAll();
   showToast('Registo adicionado.');
