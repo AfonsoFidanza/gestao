@@ -220,6 +220,31 @@
     .barlist .brow .track{ flex:1 1 auto; order:2; }
     .barlist .brow .amt{ width:auto; order:3; }
   }
+  /* Tabelas em cartões legíveis em ecrãs de telemóvel — cada linha vira um cartão com
+     "rótulo: valor" empilhados, em vez de texto minúsculo com scroll horizontal. */
+  @media (max-width:640px){
+    div:has(> table){ overflow-x:visible; }
+    table{ font-size:14px; width:100%; }
+    table thead{ display:none; }
+    table, table tbody, table tr, table td{ display:block; width:100%; }
+    table tr{
+      background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+      padding:12px 14px; margin-bottom:10px;
+    }
+    table tr:hover{ background:var(--surface-2); }
+    table td{
+      display:flex; justify-content:space-between; align-items:center; gap:12px;
+      padding:6px 0; border-bottom:1px solid var(--border-soft); text-align:right;
+    }
+    table td:last-child{ border-bottom:none; }
+    table td.num{ text-align:right; }
+    table td[data-label]::before{
+      content:attr(data-label); font-family:var(--font-mono); font-size:10.5px;
+      text-transform:uppercase; letter-spacing:0.6px; color:var(--text-dim);
+      text-align:left; margin-right:auto; flex-shrink:0;
+    }
+    table td .row-actions{ justify-content:flex-end; }
+  }
   .empty{ text-align:center; padding:36px 10px; color:var(--text-dim); font-size:13px; }
 
   .chart-svg{ width:100%; height:auto; display:block; }
@@ -2603,10 +2628,19 @@ function computeSavingsComparisonHistory(owner, monthsBack){
 }
 
 /* ======================= SVG CHART HELPERS ======================= */
+// Os gráficos usam um viewBox fixo (1000 unidades) que depois é esticado para a largura real do
+// cartão via CSS — em ecrãs de telemóvel essa largura é bem menor do que no desktop, por isso o
+// mesmo font-size (em unidades do viewBox) acaba visualmente minúsculo. Aumentamos o tamanho do
+// texto e as margens quando o ecrã é estreito, para compensar essa diferença de escala.
+function chartMetrics(){
+  const mobile = window.innerWidth < 640;
+  return { mobile, fs: mobile ? 20 : 10 };
+}
 function buildLineChart(points, opts){
   opts = opts || {};
+  const { mobile, fs } = chartMetrics();
   const width = 1000, height = opts.height || 220;
-  const padL = 54, padR = 18, padT = 18, padB = 28;
+  const padL = mobile ? 84 : 54, padR = 18, padT = mobile ? 26 : 18, padB = mobile ? 34 : 28;
   if(points.length === 0) return '<p class="empty">Ainda não há dados suficientes.</p>';
   const values = points.map(p=>p.value);
   let min = Math.min(0, ...values);
@@ -2627,22 +2661,23 @@ function buildLineChart(points, opts){
   let labels = '';
   points.forEach((p,i)=>{
     if(i % labelEvery === 0 || i === points.length-1){
-      labels += `<text x="${xy[i][0].toFixed(1)}" y="${height-8}" font-size="10" fill="var(--text-dim)" font-family="var(--font-mono)" text-anchor="middle">${p.label}</text>`;
+      labels += `<text x="${xy[i][0].toFixed(1)}" y="${height-8}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)" text-anchor="middle">${p.label}</text>`;
     }
   });
   return `<svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="height:${height}px;">
     <line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${width-padR}" y2="${zeroY.toFixed(1)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4"/>
     <path d="${areaPath}" fill="${color}" opacity="0.12" stroke="none"/>
     <path d="${path}" fill="none" stroke="${color}" stroke-width="2"/>
-    <text x="4" y="${padT+6}" font-size="10" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(max)}</text>
-    <text x="4" y="${height-padB}" font-size="10" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(min)}</text>
+    <text x="4" y="${padT+6}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(max)}</text>
+    <text x="4" y="${height-padB}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(min)}</text>
     ${labels}
   </svg>`;
 }
 function buildDateAlignedLineChart(series, opts){
   opts = opts || {};
+  const { mobile, fs } = chartMetrics();
   const width = 1000, height = opts.height || 260;
-  const padL = 62, padR = 18, padT = 18, padB = 28;
+  const padL = mobile ? 90 : 62, padR = 18, padT = mobile ? 26 : 18, padB = mobile ? 34 : 28;
   const allDates = [...new Set(series.flatMap(s=>s.points.map(p=>p.date)))].sort();
   const allVals = series.flatMap(s=>s.points.map(p=>p.value));
   if(allDates.length === 0 || allVals.length === 0) return '<p class="empty">Ainda não há dados suficientes.</p>';
@@ -2672,13 +2707,13 @@ function buildDateAlignedLineChart(series, opts){
     const idx = Math.round(i*(allDates.length-1)/Math.max(1,labelCount-1));
     const d = allDates[idx];
     const x = xForDate(d);
-    labelEls += `<text x="${x.toFixed(1)}" y="${height-8}" font-size="10" fill="var(--text-dim)" font-family="var(--font-mono)" text-anchor="middle">${formatDatePT(d)}</text>`;
+    labelEls += `<text x="${x.toFixed(1)}" y="${height-8}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)" text-anchor="middle">${formatDatePT(d)}</text>`;
   }
   const zeroY = padT + (height-padT-padB) * (1 - (0-min)/range);
   return `<svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="height:${height}px;">
     <line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${width-padR}" y2="${zeroY.toFixed(1)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4"/>
-    <text x="4" y="${padT+6}" font-size="10" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(max)}</text>
-    <text x="4" y="${height-padB}" font-size="10" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(min)}</text>
+    <text x="4" y="${padT+6}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(max)}</text>
+    <text x="4" y="${height-padB}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(min)}</text>
     ${paths}
     ${dots}
     ${labelEls}
@@ -2686,8 +2721,9 @@ function buildDateAlignedLineChart(series, opts){
 }
 function buildMultiLineChart(series, opts){
   opts = opts || {};
+  const { mobile, fs } = chartMetrics();
   const width = 1000, height = opts.height || 260;
-  const padL = 62, padR = 18, padT = 18, padB = 28;
+  const padL = mobile ? 90 : 62, padR = 18, padT = mobile ? 26 : 18, padB = mobile ? 34 : 28;
   const labels = series[0] ? series[0].points.map(p=>p.label) : [];
   const allVals = series.flatMap(s=>s.points.map(p=>p.value));
   if(allVals.length === 0) return '<p class="empty">Ainda não há dados suficientes.</p>';
@@ -2712,7 +2748,7 @@ function buildMultiLineChart(series, opts){
   labels.forEach((l,i)=>{
     if(i % labelEvery === 0 || i===n-1){
       const x = padL + i*stepX;
-      labelEls += `<text x="${x.toFixed(1)}" y="${height-8}" font-size="10" fill="var(--text-dim)" font-family="var(--font-mono)" text-anchor="middle">${l}</text>`;
+      labelEls += `<text x="${x.toFixed(1)}" y="${height-8}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)" text-anchor="middle">${l}</text>`;
     }
   });
   const zeroY = padT + (height-padT-padB) * (1 - (0-min)/range);
@@ -2720,12 +2756,12 @@ function buildMultiLineChart(series, opts){
   if(opts.refLine != null){
     const refY = padT + (height-padT-padB) * (1 - (opts.refLine-min)/range);
     refLineEl = `<line x1="${padL}" y1="${refY.toFixed(1)}" x2="${width-padR}" y2="${refY.toFixed(1)}" stroke="var(--expense)" stroke-width="1.4" stroke-dasharray="6 3"/>
-    <text x="${width-padR}" y="${(refY-5).toFixed(1)}" font-size="10" fill="var(--expense)" font-family="var(--font-mono)" text-anchor="end">${opts.refLineLabel || fmtMoney(opts.refLine)}</text>`;
+    <text x="${width-padR}" y="${(refY-5).toFixed(1)}" font-size="${fs}" fill="var(--expense)" font-family="var(--font-mono)" text-anchor="end">${opts.refLineLabel || fmtMoney(opts.refLine)}</text>`;
   }
   return `<svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="height:${height}px;">
     <line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${width-padR}" y2="${zeroY.toFixed(1)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4"/>
-    <text x="4" y="${padT+6}" font-size="10" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(max)}</text>
-    <text x="4" y="${height-padB}" font-size="10" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(min)}</text>
+    <text x="4" y="${padT+6}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(max)}</text>
+    <text x="4" y="${height-padB}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(min)}</text>
     ${paths}
     ${refLineEl}
     ${labelEls}
@@ -4020,11 +4056,27 @@ function computeFutureFeasibilityTimeline(){
   const monthlyRate = Math.max(0, ['afonso_poupanca','afonso_investimento','leonor_poupanca','leonor_investimento']
     .reduce((s,k)=> s + (avgDeltas[k]||0), 0) - mortgageExtra);
 
+  const nowKey = monthKey(new Date());
+  const futures = [...state.future].sort((a,b)=> a.month.localeCompare(b.month));
+
+  // O excedente só começa a existir depois de o fundo de emergência de 12 meses estar completo
+  // — exatamente como o aviso já mostrado acima ("Ainda não tens o fundo... atinges os X em Y").
+  // Por isso simulamos primeiro os meses que faltam para preencher esse fundo, antes de deixar
+  // o ritmo de poupança começar a contar para as despesas futuras; sem isto, a linha do tempo
+  // contradizia o próprio aviso, mostrando datas anteriores a estarem o fundo completo.
+  const fundGap = Math.max(0, fund.target12 - fund.totalSavings);
   let cursorSurplus = Math.max(0, fund.totalSavings - fund.target12);
   let cursorMonths = 0;
-  const nowKey = monthKey(new Date());
+  if(fundGap > 0){
+    if(monthlyRate <= 0){
+      const timeline = futures.map(f => ({ ...f, feasibleMonthKey: null, totalMonthsFromNow: Infinity }));
+      return { timeline, monthlyRate, reserve: fund.target12 };
+    }
+    const monthsToFillFund = Math.ceil(fundGap/monthlyRate);
+    cursorMonths = monthsToFillFund;
+    cursorSurplus = monthlyRate*monthsToFillFund - fundGap;
+  }
 
-  const futures = [...state.future].sort((a,b)=> a.month.localeCompare(b.month));
   const timeline = futures.map(f=>{
     const amt = Number(f.amount)||0;
     let neededMonths;
@@ -4635,6 +4687,22 @@ function renderAll(){
   renderInvestimentos();
   renderSolarAll();
   renderIrsJovemStatus();
+  applyResponsiveTableCards();
+}
+// Nos ecrãs estreitos (telemóvel), transforma qualquer <table> em cartões empilhados por linha
+// (label: valor), em vez de texto minúsculo com scroll horizontal — o mesmo espírito legível que
+// já existia nos cartões de estatística (ex: ROI da tab Solar). Funciona com qualquer tabela,
+// lendo os cabeçalhos reais em vez de precisar de marcação manual em cada função de render.
+function applyResponsiveTableCards(){
+  document.querySelectorAll('table').forEach(table=>{
+    const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+    if(!headers.length) return;
+    table.querySelectorAll('tbody tr').forEach(tr=>{
+      Array.from(tr.children).forEach((td, i)=>{
+        if(headers[i] !== undefined) td.setAttribute('data-label', headers[i]);
+      });
+    });
+  });
 }
 
 /* ======================= NAVIGATION ======================= */
