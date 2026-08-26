@@ -599,11 +599,6 @@
           <div id="gasto-pessoal-chart"></div>
         </div>
         <div class="card">
-          <div class="card-title">Histórico de pagamentos confirmados</div>
-          <p class="helptext" style="margin-top:-6px;">Todos os "Sim, já pagou" que já confirmaram, nas duas direções. Podes desfazer qualquer um, não só o último.</p>
-          <div id="reembolso-history"></div>
-        </div>
-        <div class="card">
           <div class="card-title">Pulso financeiro · saldo líquido conjunto por mês (últimos 24 meses)</div>
           <div class="pulse-wrap"><div class="pulse" id="pulse-strip"></div></div>
           <div class="pulse-axis" id="pulse-axis"></div>
@@ -775,6 +770,11 @@
             </div>
           </div>
           <div id="tabela-transacoes"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Histórico de pagamentos confirmados</div>
+          <p class="helptext" style="margin-top:-6px;">Todos os "Sim, já pagou" que já confirmaram, nas duas direções — cada um já entra como receita normal aqui em cima, no Histórico. Podes desfazer qualquer um, não só o último.</p>
+          <div id="reembolso-history"></div>
         </div>
       </div>
 
@@ -2021,6 +2021,35 @@ function loadFromParsed(parsed){
     afonso: Object.assign({}, ((parsed.settings||{}).lastIncomeConfirmedDate||{}).afonso||{}),
     leonor: Object.assign({}, ((parsed.settings||{}).lastIncomeConfirmedDate||{}).leonor||{})
   };
+  // Correção única (não repete em cada load): antes de "Já recebi: Salário" alinhar todas as
+  // categorias do Afonso ao clicar, podes já ter confirmado o Salário sem isso acontecer — o que
+  // deixava o "início do ciclo" preso a uma confirmação mais antiga (ex: Ajuda), mesmo já teres
+  // recebido e transferido o salário depois. Isto alinha as datas UMA vez, sem criares nenhum
+  // lançamento novo nem mexeres em saldos — só corrige o ponto de partida do cálculo do ciclo.
+  if(!parsed.settings || !parsed.settings.cycleSyncMigrated){
+    const afonsoDates = merged.settings.lastIncomeConfirmedDate.afonso;
+    if(afonsoDates['Salário']){
+      Object.keys(afonsoDates).forEach(cat=>{
+        if(afonsoDates[cat] < afonsoDates['Salário']) afonsoDates[cat] = afonsoDates['Salário'];
+      });
+    }
+    merged.settings.cycleSyncMigrated = true;
+  } else {
+    merged.settings.cycleSyncMigrated = true;
+  }
+  // Correção única: exclui do orçamento pessoal a despesa "acerto de contas ferias" (25/08,
+  // 1032,61€) — é uma reconciliação pontual, não um gasto pessoal normal. Usa o mesmo campo do
+  // checkbox "Não contar para o orçamento pessoal", diretamente na entrada — por isso fica
+  // excluída permanentemente (em qualquer ciclo, agora e no futuro), sem repetir isto.
+  if(!parsed.settings || !parsed.settings.acertoFeriasBudgetFixed){
+    const alvo = (merged.entries||[]).find(e =>
+      e.type === 'despesa' && e.date === '2026-08-25' && e.desc === 'acerto de contas ferias' && Math.abs((e.amount||0) - 1032.61) < 0.01
+    );
+    if(alvo) alvo.excludeFromBudget = true;
+    merged.settings.acertoFeriasBudgetFixed = true;
+  } else {
+    merged.settings.acertoFeriasBudgetFixed = true;
+  }
   merged.gainLossHistory = Array.isArray(parsed.gainLossHistory) ? parsed.gainLossHistory : [];
   merged.solar = Object.assign({ custoInstalacao: 0, registos: [] }, parsed.solar||{});
   merged.solar.registos = Array.isArray(merged.solar.registos) ? merged.solar.registos : [];
@@ -2536,6 +2565,7 @@ function computeCycleExpense(owner, mKey){
   let total = 0;
   state.entries.forEach(e=>{
     if(e.type !== 'despesa') return;
+    if(e.excludeFromBudget) return; // reconciliações pontuais (ex: acerto de contas) não contam como despesa real
     const inWindow = cycleStart ? (e.date >= cycleStart && e.date <= today) : (e.date.slice(0,7) === mKey);
     if(!inWindow) return;
     const amt = Number(e.amount)||0;
@@ -2590,7 +2620,7 @@ function resolveCategoryForOwnerMonth(owner, category, mKey){
   const fallback = candidates.find(e=>e.generated) || candidates[0];
   return Number(fallback.amount)||0;
 }
-function computeLaggedIncomeForOwner(owner, mKeyParam){
+function computeLaggedIncomeForOwner(owner, mKeyParam, excludeReembolso){
   const mKey = mKeyParam || monthKey(new Date());
   // Cada categoria de receita recorrente (Salário, Ajuda, etc.) mantém o último valor que
   // confirmaste ("Já recebi") — não volta a zero no início de cada mês. Só muda quando
@@ -2614,19 +2644,33 @@ function computeLaggedIncomeForOwner(owner, mKeyParam){
   });
   Object.values(latestByCategory).forEach(e => { income += Number(e.amount)||0; });
   // Reembolsos de "A Receber" (Renda+Internet, Água+Luz) são específicos de cada mês — não
-  // persistem, cada mês tem o seu próprio valor a reembolsar.
-  state.entries.forEach(e=>{
-    if(e.type==='receita' && e.owner===owner && e.date.slice(0,7)===mKey && e.autoReembolso) income += Number(e.amount)||0;
-  });
+  // persistem, cada mês tem o seu próprio valor a reembolsar. NOTA: só somam aqui quando
+  // excludeReembolso não está ativo — quem calcula "Contas fixas" já só conta a TUA parte da
+  // conta (ex: 66% da Renda), por isso somar aqui o reembolso da outra pessoa contava o mesmo
+  // benefício duas vezes (ver computeFixedMonthlyForOwner, que passa excludeReembolso=true).
+  if(!excludeReembolso){
+    state.entries.forEach(e=>{
+      if(e.type==='receita' && e.owner===owner && e.date.slice(0,7)===mKey && e.autoReembolso) income += Number(e.amount)||0;
+    });
+  }
   return income;
 }
 const LIVE_ACTUAL_BILL_CATEGORIES = new Set(['Água','Luz']);
 function computeFixedMonthlyForOwner(owner, mKeyParam){
   const mKey = mKeyParam || monthKey(new Date());
-  let bills = 0, plannedSavings = 0;
+  let bills = 0, billsCgd = 0, plannedSavings = 0;
   state.recurring.forEach(tpl=>{
     if(!tpl.active) return;
     if(tpl.kind === 'despesa' && LIVE_ACTUAL_BILL_CATEGORIES.has(tpl.category)) return; // handled below via real entries, to avoid double-counting
+    // Só interessa dinheiro que passe pela conta de onde poupas (ActivoBank) — qualquer despesa
+    // que saia da CGD (tag de banco "Caixa Débito", como a Renda e os débitos do painel da CGD)
+    // nunca chega a tocar no ActivoBank, por isso não entra na soma usada na recomendação — mas
+    // fica à parte em "billsCgd" só para mostrares separado, por transparência.
+    if(tpl.kind === 'despesa' && tpl.banco === 'Caixa Débito'){
+      if(tpl.owner === owner) billsCgd += templateAmountForMonth(tpl, mKey);
+      else if(tpl.owner === 'conjunto') billsCgd += splitShares(templateAmountForMonth(tpl, mKey), tpl.splitType, tpl.splitPercentAfonso)[owner];
+      return;
+    }
     const amt = templateAmountForMonth(tpl, mKey);
     if(tpl.kind === 'despesa'){
       if(tpl.owner === owner) bills += amt;
@@ -2635,15 +2679,18 @@ function computeFixedMonthlyForOwner(owner, mKeyParam){
   });
   // Água/Luz always count from the real entries this month (manual or recurring-generated),
   // even without a recorrência configured — these bills vary and should show up live.
+  // Mesma regra do ActivoBank: se alguma vier taggeda como saindo da CGD, fica em billsCgd.
   state.entries.forEach(e=>{
-    if(e.type==='despesa' && e.date.slice(0,7)===mKey && LIVE_ACTUAL_BILL_CATEGORIES.has(e.category)){
-      const amt = Number(e.amount)||0;
-      if(e.owner === owner) bills += amt;
-      else if(e.owner === 'conjunto') bills += splitShares(amt, e.splitType, e.splitPercentAfonso)[owner];
-    }
+    if(e.type!=='despesa' || e.date.slice(0,7)!==mKey || !LIVE_ACTUAL_BILL_CATEGORIES.has(e.category)) return;
+    const amt = Number(e.amount)||0;
+    const share = e.owner === owner ? amt : (e.owner === 'conjunto' ? splitShares(amt, e.splitType, e.splitPercentAfonso)[owner] : 0);
+    if(e.banco === 'Caixa Débito') billsCgd += share; else bills += share;
   });
-  const income = computeLaggedIncomeForOwner(owner, mKey);
-  return { income, bills, plannedSavings };
+  // excludeReembolso=true: "bills" acima já só conta a tua fatia da conta (a divisão trata disso),
+  // por isso a receita usada aqui para a recomendação de poupança não pode voltar a somar o
+  // reembolso da outra pessoa — já está refletido em teres uma conta fixa mais baixa.
+  const income = computeLaggedIncomeForOwner(owner, mKey, true);
+  return { income, bills, billsCgd, plannedSavings };
 }
 function computeMonthlyMoneyFlow(owner){
   const mKey = monthKey(new Date());
@@ -3123,7 +3170,6 @@ function renderDashboard(){
   renderPulse(aggH);
   document.getElementById('dashboard-chart').innerHTML = buildLineChart(tl.slice(-24).map(r=>({label:monthLabel(r.month), value: householdTotal(r)})), { color:'var(--savings)' });
   renderBankWarnings();
-  renderReembolsoHistory();
   renderSavingsComparison('afonso');
   renderSavingsComparison('leonor');
   renderNetWorth();
@@ -3469,9 +3515,19 @@ function renderCgdPanel(){
     state.cgd.month = mKey;
     state.cgd.checked = {};
     state.cgd.transferred = false;
+    // Um novo salário = um novo ciclo. Avança a data de confirmação de TODAS as categorias de
+    // receita do Afonso para hoje, para que "Contas fixas", "Gasto pessoal este mês", "Já
+    // colocaste nas poupanças" e "Deves colocar nas poupanças" voltem a 0 (não são valores
+    // guardados — recalculam sempre a partir do início do ciclo, e o ciclo passa a começar hoje).
+    // Nada disto precisa de ficar guardado à parte: nenhum sítio da app usa hoje um "valor do
+    // ciclo anterior" depois de um novo ciclo começar.
+    Object.keys(state.settings.lastIncomeConfirmedDate.afonso).forEach(cat=>{
+      state.settings.lastIncomeConfirmedDate.afonso[cat] = todayISO();
+    });
+    state.settings.lastIncomeConfirmedDate.afonso['Salário'] = todayISO();
     saveState();
     renderAll();
-    showToast('Salário confirmado na CGD — checklist reiniciado.');
+    showToast('Salário confirmado na CGD — novo ciclo iniciado, checklist reiniciado.');
   });
   container.querySelectorAll('[data-cgd-check]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
@@ -3524,8 +3580,8 @@ function renderSavingsAdvice(owner){
   const mKey = monthKey(new Date());
   const actualSpend = computeActualPersonalSpend(owner, mKey);
   const pctSpend = a.budget > 0 ? Math.min(100, (actualSpend/a.budget)*100) : (actualSpend>0 ? 100 : 0);
-  const diff = a.recommended - a.plannedSavings;
   const recommended = Math.max(0, a.recommended);
+  const diff = recommended - a.plannedSavings;
   const savedDiff = a.actualSaved - recommended;
   const pctSaved = recommended > 0 ? Math.min(100, (a.actualSaved/recommended)*100) : (a.actualSaved>0 ? 100 : 0);
   const box = document.getElementById(`${owner}-advice`);
@@ -3533,10 +3589,12 @@ function renderSavingsAdvice(owner){
     <div class="allowance-row"><span>Receita fixa mensal <span class="micro" style="font-weight:normal;">(só o que confirmaste este mês)</span></span><span class="num pos">${fmtMoney(a.income)}</span></div>
     ${a.income === 0 && explainZeroFixedIncome(owner, mKey) ? `<div class="micro" style="color:var(--savings); margin-top:-4px; margin-bottom:8px;">${explainZeroFixedIncome(owner, mKey)}</div>` : ''}
     <div style="margin:6px 0 4px 0;">${renderIncomeConfirmButtons(owner)}</div>
-    <div class="allowance-row"><span>Contas fixas (incluindo divididas)</span><span class="num neg">- ${fmtMoney(a.bills)}</span></div>
+    <div class="allowance-row"><span>Contas fixas — ActivoBank <span class="micro" style="font-weight:normal;">(conta aqui)</span></span><span class="num neg">- ${fmtMoney(a.bills)}</span></div>
+    ${a.billsCgd > 0 ? `<div class="allowance-row"><span>Contas fixas — CGD <span class="micro" style="font-weight:normal;">(não conta aqui, sai antes de chegar ao ActivoBank)</span></span><span class="num" style="color:var(--text-dim);">- ${fmtMoney(a.billsCgd)}</span></div>` : ''}
     <div class="allowance-row"><span>Orçamento pessoal definido</span><span class="num neg">- ${fmtMoney(a.budget)}</span></div>
     <div class="allowance-row total" style="color:var(--savings);"><span>Deves colocar nas poupanças</span><span class="num">${fmtMoney(recommended)}</span></div>
     <p class="helptext" style="margin-top:-2px; margin-bottom:6px;">= Receita fixa mensal − Contas fixas − Orçamento pessoal. Categorias que abatem outra recorrência (ex: uma "Ajuda" que reduz a Renda) não somam à Receita, para não contar o mesmo valor duas vezes.</p>
+    ${a.recommended < 0 ? `<div class="micro" style="color:var(--expense); margin-top:-4px; margin-bottom:6px;">Este ciclo não sobra nada para poupar — as Contas fixas + Orçamento pessoal ultrapassam a Receita confirmada em ${fmtMoney(-a.recommended)}.</div>` : ''}
     ${isMortgageActiveNow() ? `<div class="allowance-row" style="margin-top:2px;"><span style="padding-left:12px;">↳ da qual, amortização extra do crédito</span><span class="num" style="color:var(--invest);">${fmtMoney(computeMortgageMonthlyExtraForOwner(owner))}</span></div>` : ''}
     <div class="allowance-row" style="margin-top:6px;"><span>Já tens automatizado (recorrências)</span><span class="num">${fmtMoney(a.plannedSavings)}</span></div>
     ${Math.abs(diff) > 1 ? `<div class="micro" style="color:var(--savings); margin-top:2px;">${diff>0 ? 'Podias ajustar a recorrência e poupar mais '+fmtMoney(diff)+'/mês.' : 'Já poupas automaticamente '+fmtMoney(-diff)+'/mês acima do recomendado.'}</div>` : ''}
@@ -3621,6 +3679,7 @@ function renderFundoEmergenciaLista(){
   container.innerHTML = html;
 }
 function renderTransacoes(){
+  renderReembolsoHistory();
   const filterTipo = document.getElementById('filter-tipo').value;
   const filterQuem = document.getElementById('filter-quem').value;
   const rows = [...state.entries]
