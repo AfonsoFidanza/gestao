@@ -228,6 +228,18 @@
     border:3px solid var(--surface); box-shadow:0 0 0 1px var(--border), 0 1px 3px rgba(0,0,0,0.25); cursor:pointer;
   }
   input.pct-slider::-moz-range-track{ height:8px; border-radius:6px; background:var(--surface-2); }
+  /* Grupos de mês colapsáveis (Histórico de Lançamentos) */
+  .month-group{ border-bottom:1px solid var(--border-soft); }
+  .month-group:last-child{ border-bottom:none; }
+  .month-group-header{
+    all:unset; box-sizing:border-box; display:flex; align-items:center; gap:10px; width:100%;
+    padding:12px 4px; cursor:pointer; font-family:var(--font-mono);
+  }
+  .month-group-header:hover{ background:var(--surface-2); }
+  .month-group-caret{ color:var(--text-dim); font-size:11px; width:10px; flex-shrink:0; }
+  .month-group-title{ font-size:14px; font-weight:600; color:var(--text); text-transform:capitalize; }
+  .month-group-count{ margin-left:auto; }
+  .month-group-body table{ margin-bottom:4px; }
   @media (max-width:420px){
     .hero-value{ font-size:28px; }
     .card{ padding:16px 14px; }
@@ -1070,6 +1082,55 @@
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-title">Quanto está disponível por mês</div>
+        <p class="helptext" style="margin-top:-6px;">Valor editável — já não vem das recorrências. Atualiza sempre que a tua poupança mensal real mudar.</p>
+        <div class="form-row">
+          <div class="field"><label class="tag-afonso">Base mensal — Afonso (€)</label><input type="number" id="cred-base-afonso" min="0" step="10"></div>
+          <div class="field"><label class="tag-leonor">Base mensal — Leonor (€)</label><input type="number" id="cred-base-leonor" min="0" step="10"></div>
+        </div>
+        <button class="btn secondary" id="cred-save-base">Guardar base mensal</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Como dividir esse dinheiro</div>
+        <p class="helptext" style="margin-top:-6px;">As 3 fatias somam sempre 100% do valor total acima. A Poupança só muda quando a arrastas diretamente — mexer em Produtos ou Amortização troca sempre só entre os dois, nunca tira à Poupança.</p>
+        <div class="pct-slider-group">
+          <div class="pct-slider-row">
+            <div class="pct-slider-label"><span class="dot" style="background:var(--income);"></span>Poupança (fica intocável)<span class="pct-slider-value" id="cred-pct-poupanca-label">70%</span></div>
+            <input type="range" class="pct-slider" id="cred-pct-poupanca" min="0" max="100" step="1" style="--slider-color:var(--income);">
+          </div>
+          <div class="pct-slider-row">
+            <div class="pct-slider-label"><span class="dot" style="background:var(--invest);"></span>Produtos (PPR, ETF...)<span class="pct-slider-value" id="cred-pct-produtos-label">10%</span></div>
+            <input type="range" class="pct-slider" id="cred-pct-produtos" min="0" max="100" step="1" style="--slider-color:var(--invest);">
+          </div>
+          <div class="pct-slider-row">
+            <div class="pct-slider-label"><span class="dot" style="background:var(--expense);"></span>Amortização do crédito<span class="pct-slider-value" id="cred-pct-amortizacao-label">20%</span></div>
+            <input type="range" class="pct-slider" id="cred-pct-amortizacao" min="0" max="100" step="1" style="--slider-color:var(--expense);">
+          </div>
+        </div>
+        <div id="cred-allocation-breakdown" style="margin-top:4px;"></div>
+        <div class="form-row">
+          <div class="field">
+            <label>Reforço anual extra: % sobre a poupança acumulada do ano</label>
+            <input type="number" id="cred-reforco-pct" min="0" max="100" step="1">
+            <div class="field-hint">Aplicado uma vez por ano, sobre o total que foi para poupança nesse ano (não sobre a amortização).</div>
+          </div>
+          <div class="field">
+            <label>A amortização extra começa em</label>
+            <input type="month" id="cred-inicio-extra">
+            <div class="field-hint">Antes deste mês, só se paga a prestação normal.</div>
+          </div>
+        </div>
+        <button class="btn secondary" id="cred-save-alloc">Guardar divisão</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Automatizações de poupança</div>
+        <p class="helptext" style="margin-top:-6px;">Recorrências ativas que transferem dinheiro automaticamente para a poupança ou investimentos.</p>
+        <div id="proj-savings-automations"></div>
+      </div>
+
       <div class="grid grid-2">
         <div class="card card-center">
           <div class="card-title">Quanto poupar por mês para atingir X€</div>
@@ -1091,6 +1152,7 @@
         <div class="card card-center">
           <div class="card-title">Quanto é possível poupar no máximo por mês</div>
           <p class="helptext" style="margin-top:-6px;">Receita fixa (desfasada) menos contas fixas de ambos — o teto teórico, sem gastos pessoais.</p>
+          <div id="calc-max-possible-mortgage-note"></div>
           <div id="calc-max-possible-result"></div>
         </div>
       </div>
@@ -1098,12 +1160,6 @@
       <div class="grid grid-2" style="margin-top:16px;">
         <div class="card"><div class="card-title">Projeção a 5 anos</div><div id="proj5-summary"></div></div>
         <div class="card"><div class="card-title">Projeção a 10 anos</div><div id="proj10-summary"></div></div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Automatizações de poupança</div>
-        <p class="helptext" style="margin-top:-6px;">Recorrências ativas que transferem dinheiro automaticamente para a poupança ou investimentos.</p>
-        <div id="proj-savings-automations"></div>
       </div>
 
       <div class="card">
@@ -1189,46 +1245,11 @@
       </div>
 
       <div class="card">
-        <div class="card-title">Quanto está disponível por mês</div>
-        <p class="helptext" style="margin-top:-6px;">Valor editável — já não vem das recorrências. Atualiza sempre que a tua poupança mensal real mudar.</p>
-        <div class="form-row">
-          <div class="field"><label class="tag-afonso">Base mensal — Afonso (€)</label><input type="number" id="cred-base-afonso" min="0" step="10"></div>
-          <div class="field"><label class="tag-leonor">Base mensal — Leonor (€)</label><input type="number" id="cred-base-leonor" min="0" step="10"></div>
+        <div class="stat" style="margin-bottom:0;">
+          <div class="lbl">Amortização extra do crédito</div>
+          <div class="val gold" id="cred-amortizacao-readonly">€0,00/mês</div>
+          <div class="sub">Definido na tab <strong>Projeções</strong> ("Como dividir esse dinheiro") — vem de lá, não é editável aqui.</div>
         </div>
-        <button class="btn secondary" id="cred-save-base">Guardar base mensal</button>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Como dividir esse dinheiro</div>
-        <p class="helptext" style="margin-top:-6px;">As 3 fatias somam sempre 100% do valor total acima. A Poupança só muda quando a arrastas diretamente — mexer em Produtos ou Amortização troca sempre só entre os dois, nunca tira à Poupança.</p>
-        <div class="pct-slider-group">
-          <div class="pct-slider-row">
-            <div class="pct-slider-label"><span class="dot" style="background:var(--income);"></span>Poupança (fica intocável)<span class="pct-slider-value" id="cred-pct-poupanca-label">70%</span></div>
-            <input type="range" class="pct-slider" id="cred-pct-poupanca" min="0" max="100" step="1" style="--slider-color:var(--income);">
-          </div>
-          <div class="pct-slider-row">
-            <div class="pct-slider-label"><span class="dot" style="background:var(--invest);"></span>Produtos (PPR, ETF...)<span class="pct-slider-value" id="cred-pct-produtos-label">10%</span></div>
-            <input type="range" class="pct-slider" id="cred-pct-produtos" min="0" max="100" step="1" style="--slider-color:var(--invest);">
-          </div>
-          <div class="pct-slider-row">
-            <div class="pct-slider-label"><span class="dot" style="background:var(--expense);"></span>Amortização do crédito<span class="pct-slider-value" id="cred-pct-amortizacao-label">20%</span></div>
-            <input type="range" class="pct-slider" id="cred-pct-amortizacao" min="0" max="100" step="1" style="--slider-color:var(--expense);">
-          </div>
-        </div>
-        <div id="cred-allocation-breakdown" style="margin-top:4px;"></div>
-        <div class="form-row">
-          <div class="field">
-            <label>Reforço anual extra: % sobre a poupança acumulada do ano</label>
-            <input type="number" id="cred-reforco-pct" min="0" max="100" step="1">
-            <div class="field-hint">Aplicado uma vez por ano, sobre o total que foi para poupança nesse ano (não sobre a amortização).</div>
-          </div>
-          <div class="field">
-            <label>A amortização extra começa em</label>
-            <input type="month" id="cred-inicio-extra">
-            <div class="field-hint">Antes deste mês, só se paga a prestação normal.</div>
-          </div>
-        </div>
-        <button class="btn secondary" id="cred-save-alloc">Guardar divisão</button>
       </div>
 
       <div class="card">
@@ -3678,6 +3699,7 @@ function renderFundoEmergenciaLista(){
   html += `<p class="helptext" style="margin-top:12px;">Média mensal por categoria, com base nos últimos ${monthsUsed} mes(es) em que existem dados (cada categoria conta só pelos meses em que teve despesas, não pelo total da janela) — a mesma base usada para calcular o fundo de emergência.</p>`;
   container.innerHTML = html;
 }
+let expandedTxMonths = null;
 function renderTransacoes(){
   renderReembolsoHistory();
   const filterTipo = document.getElementById('filter-tipo').value;
@@ -3690,8 +3712,18 @@ function renderTransacoes(){
   const container = document.getElementById('tabela-transacoes');
   if(rows.length === 0){ container.innerHTML = '<div class="empty">Ainda não há registos. Adiciona o primeiro acima.</div>'; return; }
 
-  let html = `<table><thead><tr><th>Data</th><th>De quem</th><th>Tipo</th><th>Categoria</th><th>Banco</th><th>Descrição</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody>`;
+  // Agrupado por mês, para não seres obrigado a fazer scroll por uma lista corrida — só o mês
+  // atual começa aberto, os restantes ficam colapsados (clica no título para abrir/fechar).
+  if(!expandedTxMonths) expandedTxMonths = new Set([monthKey(new Date())]);
+  const groups = [];
   rows.forEach(e=>{
+    const mKey = e.date.slice(0,7);
+    let g = groups[groups.length-1];
+    if(!g || g.mKey !== mKey){ g = { mKey, rows: [] }; groups.push(g); }
+    g.rows.push(e);
+  });
+
+  const rowHtml = (e) => {
     const isIncome = e.type === 'receita';
     let quemHtml;
     if(e.owner === 'conjunto'){
@@ -3703,7 +3735,7 @@ function renderTransacoes(){
     } else {
       quemHtml = `<span class="tag ${e.owner==='afonso'?'tag-afonso':'tag-leonor'}">${OWNER_LABEL[e.owner]}</span>`;
     }
-    html += `<tr>
+    return `<tr>
       <td>${formatDatePT(e.date)}</td>
       <td>${quemHtml}</td>
       <td><span class="tag" style="color:${isIncome?'var(--income)':'var(--expense)'}">${isIncome?'Receita':'Despesa'}</span></td>
@@ -3713,10 +3745,35 @@ function renderTransacoes(){
       <td class="num" style="color:${isIncome?'var(--income)':'var(--expense)'}">${isIncome?'+':'-'} ${fmtMoney(e.amount)}</td>
       <td><div class="row-actions"><button class="icon-btn" data-edit-entry="${e.id}">✎</button><button class="icon-btn" data-del-entry="${e.id}">✕</button></div></td>
     </tr>`;
+  };
+
+  let html = '';
+  groups.forEach(g=>{
+    const isOpen = expandedTxMonths.has(g.mKey);
+    html += `<div class="month-group">
+      <button type="button" class="month-group-header" data-month-toggle="${g.mKey}">
+        <span class="month-group-caret">${isOpen ? '▾' : '▸'}</span>
+        <span class="month-group-title">${monthLabel(g.mKey)}</span>
+        <span class="month-group-count micro">${g.rows.length} registo${g.rows.length===1?'':'s'}</span>
+      </button>`;
+    if(isOpen){
+      html += `<div class="month-group-body">
+        <table><thead><tr><th>Data</th><th>De quem</th><th>Tipo</th><th>Categoria</th><th>Banco</th><th>Descrição</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody>
+        ${g.rows.map(rowHtml).join('')}
+        </tbody></table>
+      </div>`;
+    }
+    html += `</div>`;
   });
-  html += '</tbody></table>';
   container.innerHTML = html;
 
+  container.querySelectorAll('[data-month-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const m = btn.getAttribute('data-month-toggle');
+      if(expandedTxMonths.has(m)) expandedTxMonths.delete(m); else expandedTxMonths.add(m);
+      renderTransacoes();
+    });
+  });
   container.querySelectorAll('[data-edit-entry]').forEach(btn=>{
     btn.addEventListener('click', ()=> startEditEntry(btn.getAttribute('data-edit-entry')));
   });
@@ -4752,6 +4809,7 @@ function renderCreditoLoan(){
   document.getElementById('cred-idade-afonso').value = state.mortgage.idadeAfonso || '';
   document.getElementById('cred-idade-leonor').value = state.mortgage.idadeLeonor || '';
   document.getElementById('cred-payer').value = state.mortgage.payer || 'afonso';
+  document.getElementById('cred-amortizacao-readonly').textContent = fmtMoney(computeMortgageMonthlyExtra()) + '/mês';
   document.getElementById('cred-base-afonso').value = state.mortgage.baseAfonso || '';
   document.getElementById('cred-base-leonor').value = state.mortgage.baseLeonor || '';
   updatePctSliderUI();
@@ -5961,6 +6019,14 @@ function renderMaxPossibleSavings(){
       <div class="val gold">${fmtMoney(total)}</div>
       <div class="sub">Receita fixa (do mês anterior) menos contas fixas de ambos — assume que não gastas nada em ti este mês.</div>
     </div>`;
+  // A divisão Poupança/Produtos/Amortização definida acima só entra em vigor a partir do mês de
+  // início configurado — antes disso, os valores mostrados nesse cartão ainda não refletem a
+  // realidade deste mês, por isso avisamos aqui, mesmo antes deste "teto teórico".
+  const noteEl = document.getElementById('calc-max-possible-mortgage-note');
+  const hasLoan = (state.mortgage.principalInicial||0) > 0 && (state.mortgage.installment||0) > 0;
+  noteEl.innerHTML = (hasLoan && !isMortgageActiveNow())
+    ? `<p class="helptext" style="margin-top:-2px; color:var(--savings);">Esta divisão ainda não está a ser aplicada — só começa em ${monthLabel(state.mortgage.startMonth || '0000-00')}. Os valores acima são o que vai acontecer a partir dessa data.</p>`
+    : '';
 }
 
 /* ======================= PERSONAL BUDGET INPUTS ======================= */
