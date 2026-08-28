@@ -880,7 +880,7 @@
               </div>
             </div>
             <p class="helptext" id="r-proximo-mes-note" style="margin-top:-6px;">Marca isto se é uma despesa paga no fim de um mês, mas só deve contar no mês a seguir.</p>
-            <p class="helptext" id="r-receita-lag-note" style="display:none; margin-top:-6px;">Receitas usam sempre a data real — o "Receita fixa mensal" já conta este valor automaticamente para o mês seguinte, sem precisares de marcar nada.</p>
+            <p class="helptext" id="r-receita-lag-note" style="display:none; margin-top:-6px;">Receitas usam sempre a data real — o "Receita mensal" já conta este valor automaticamente, sem precisares de marcar nada.</p>
             <button type="submit" class="btn" id="form-recorrente-submit">Criar recorrência</button>
             <button type="button" class="btn secondary" id="form-recorrente-cancel" style="display:none;">Cancelar edição</button>
           </form>
@@ -1151,7 +1151,7 @@
         </div>
         <div class="card card-center">
           <div class="card-title">Quanto é possível poupar no máximo por mês</div>
-          <p class="helptext" style="margin-top:-6px;">Receita fixa (desfasada) menos contas fixas de ambos — o teto teórico, sem gastos pessoais.</p>
+          <p class="helptext" style="margin-top:-6px;">Receita mensal (tudo o que entra na ActivoBank, exceto a Ajuda) menos contas fixas de ambos — o teto teórico, sem gastos pessoais.</p>
           <div id="calc-max-possible-mortgage-note"></div>
           <div id="calc-max-possible-result"></div>
         </div>
@@ -2710,8 +2710,38 @@ function computeFixedMonthlyForOwner(owner, mKeyParam){
   // excludeReembolso=true: "bills" acima já só conta a tua fatia da conta (a divisão trata disso),
   // por isso a receita usada aqui para a recomendação de poupança não pode voltar a somar o
   // reembolso da outra pessoa — já está refletido em teres uma conta fixa mais baixa.
-  const income = computeLaggedIncomeForOwner(owner, mKey, true);
+  const income = computeAllIncomeForOwner(owner, mKey);
   return { income, bills, billsCgd, plannedSavings };
+}
+// Toda a receita lançada este mês que chega mesmo à conta onde poupas (ActivoBank) — não só as
+// categorias recorrentes confirmadas via "Já recebi". Isto inclui, por exemplo, o valor que
+// transferes da CGD para a ActivoBank (painel CGD), reembolsos avulsos, ou qualquer receita
+// manual — qualquer dinheiro que entre mesmo na conta. Excluídos: receitas marcadas como saindo
+// pela CGD (nunca tocam na ActivoBank) e categorias que só existem para abater outra recorrência
+// (ex: uma "Ajuda" que reduz a Renda — já refletida do lado das Contas Fixas, não pode somar aqui
+// também).
+// Receita mensal: tudo o que entra mesmo na conta onde poupas (ActivoBank), venha de onde vier —
+// menos a Ajuda (que já reduz a Renda do lado das Contas Fixas, e voltar a contá-la aqui somava o
+// mesmo dinheiro duas vezes) e menos o que sai marcado como vindo pela CGD (nunca chega a tocar
+// na ActivoBank). Exclui a Ajuda pela CATEGORIA, não só quando ligada à recorrência — assim uma
+// "Ajuda" lançada à mão, sem recorrência associada, também não é contada por engano.
+// Usa o mesmo CICLO (desde a última vez que confirmaste "Já recebi") que o resto do cartão —
+// não o mês calendário inteiro — para o valor voltar mesmo a 0 sempre que confirmas de novo.
+function computeAllIncomeForOwner(owner, mKeyParam){
+  const mKey = mKeyParam || monthKey(new Date());
+  const isCurrentMonth = mKey === monthKey(new Date());
+  const cycleStart = isCurrentMonth ? computeCycleStart(owner) : null;
+  const today = todayISO();
+  let income = 0;
+  state.entries.forEach(e=>{
+    if(e.type !== 'receita' || e.owner !== owner) return;
+    const inWindow = cycleStart ? (e.date >= cycleStart && e.date <= today) : (e.date.slice(0,7) === mKey);
+    if(!inWindow) return;
+    if(e.banco === 'Caixa Débito') return;
+    if(e.category === 'Ajuda') return;
+    income += Number(e.amount)||0;
+  });
+  return income;
 }
 function computeMonthlyMoneyFlow(owner){
   const mKey = monthKey(new Date());
@@ -3607,14 +3637,14 @@ function renderSavingsAdvice(owner){
   const pctSaved = recommended > 0 ? Math.min(100, (a.actualSaved/recommended)*100) : (a.actualSaved>0 ? 100 : 0);
   const box = document.getElementById(`${owner}-advice`);
   box.innerHTML = `
-    <div class="allowance-row"><span>Receita fixa mensal <span class="micro" style="font-weight:normal;">(só o que confirmaste este mês)</span></span><span class="num pos">${fmtMoney(a.income)}</span></div>
+    <div class="allowance-row"><span>Receita mensal <span class="micro" style="font-weight:normal;">(tudo o que entra na ActivoBank este mês, exceto a Ajuda)</span></span><span class="num pos">${fmtMoney(a.income)}</span></div>
     ${a.income === 0 && explainZeroFixedIncome(owner, mKey) ? `<div class="micro" style="color:var(--savings); margin-top:-4px; margin-bottom:8px;">${explainZeroFixedIncome(owner, mKey)}</div>` : ''}
     <div style="margin:6px 0 4px 0;">${renderIncomeConfirmButtons(owner)}</div>
     <div class="allowance-row"><span>Contas fixas — ActivoBank <span class="micro" style="font-weight:normal;">(conta aqui)</span></span><span class="num neg">- ${fmtMoney(a.bills)}</span></div>
     ${a.billsCgd > 0 ? `<div class="allowance-row"><span>Contas fixas — CGD <span class="micro" style="font-weight:normal;">(não conta aqui, sai antes de chegar ao ActivoBank)</span></span><span class="num" style="color:var(--text-dim);">- ${fmtMoney(a.billsCgd)}</span></div>` : ''}
     <div class="allowance-row"><span>Orçamento pessoal definido</span><span class="num neg">- ${fmtMoney(a.budget)}</span></div>
     <div class="allowance-row total" style="color:var(--savings);"><span>Deves colocar nas poupanças</span><span class="num">${fmtMoney(recommended)}</span></div>
-    <p class="helptext" style="margin-top:-2px; margin-bottom:6px;">= Receita fixa mensal − Contas fixas − Orçamento pessoal. Categorias que abatem outra recorrência (ex: uma "Ajuda" que reduz a Renda) não somam à Receita, para não contar o mesmo valor duas vezes.</p>
+    <p class="helptext" style="margin-top:-2px; margin-bottom:6px;">= Receita mensal − Contas fixas (ActivoBank) − Orçamento pessoal. A Ajuda não soma à Receita, porque já reduz o valor da Renda do lado das Contas Fixas — contar as duas coisas seria contar o mesmo dinheiro duas vezes.</p>
     ${a.recommended < 0 ? `<div class="micro" style="color:var(--expense); margin-top:-4px; margin-bottom:6px;">Este ciclo não sobra nada para poupar — as Contas fixas + Orçamento pessoal ultrapassam a Receita confirmada em ${fmtMoney(-a.recommended)}.</div>` : ''}
     ${isMortgageActiveNow() ? `<div class="allowance-row" style="margin-top:2px;"><span style="padding-left:12px;">↳ da qual, amortização extra do crédito</span><span class="num" style="color:var(--invest);">${fmtMoney(computeMortgageMonthlyExtraForOwner(owner))}</span></div>` : ''}
     <div class="allowance-row" style="margin-top:6px;"><span>Já tens automatizado (recorrências)</span><span class="num">${fmtMoney(a.plannedSavings)}</span></div>
@@ -6017,7 +6047,7 @@ function renderMaxPossibleSavings(){
     <div class="stat">
       <div class="lbl">Teto máximo (casal), sem gastos pessoais</div>
       <div class="val gold">${fmtMoney(total)}</div>
-      <div class="sub">Receita fixa (do mês anterior) menos contas fixas de ambos — assume que não gastas nada em ti este mês.</div>
+      <div class="sub">Receita mensal de ambos menos contas fixas — assume que não gastas nada em ti este mês.</div>
     </div>`;
   // A divisão Poupança/Produtos/Amortização definida acima só entra em vigor a partir do mês de
   // início configurado — antes disso, os valores mostrados nesse cartão ainda não refletem a
