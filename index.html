@@ -2907,6 +2907,17 @@ function buildDateAlignedLineChart(series, opts){
     refLineEl = `<line x1="${padL}" y1="${refY.toFixed(1)}" x2="${width-padR}" y2="${refY.toFixed(1)}" stroke="var(--expense)" stroke-width="1.4" stroke-dasharray="6 3"/>
     <text x="${width-padR}" y="${(refY-5).toFixed(1)}" font-size="${fs}" fill="var(--expense)" font-family="var(--font-mono)" text-anchor="end">${opts.refLineLabel || fmtMoney(opts.refLine)}</text>`;
   }
+  // Marcadores extra (ex: "aqui ultrapassaste o fundo de emergência") — um círculo maior com
+  // anel à volta, mais um rótulo por cima, na cor da série a que pertencem.
+  let markerEls = '';
+  (opts.markers||[]).forEach((mk,mi)=>{
+    const x = xForDate(mk.date);
+    const y = padT + (height-padT-padB) * (1 - (mk.value-min)/range);
+    const labelY = y - 12 - (mi * 16);
+    markerEls += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="none" stroke="${mk.color}" stroke-width="2"/>
+    <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${mk.color}"/>
+    <text x="${x.toFixed(1)}" y="${labelY.toFixed(1)}" font-size="${fs}" fill="${mk.color}" font-family="var(--font-mono)" text-anchor="middle" font-weight="bold">${mk.label||''}</text>`;
+  });
   return `<svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="height:${height}px;">
     <line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${width-padR}" y2="${zeroY.toFixed(1)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4"/>
     <text x="4" y="${padT+6}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(max)}</text>
@@ -2914,6 +2925,7 @@ function buildDateAlignedLineChart(series, opts){
     ${paths}
     ${refLineEl}
     ${dots}
+    ${markerEls}
     ${labelEls}
   </svg>`;
 }
@@ -4198,6 +4210,41 @@ function computeMonthlySavingsContribution(owner, toType, isFirstMonth){
   const a = computeOwnerAllocation(owner);
   return toType === 'investimento' ? a.produtos : a.poupanca;
 }
+// Reconstrói o que a projeção "diria" mês a mês, desde o 1º mês com dados reais até hoje — sem
+// NUNCA usar nenhuma transferência real, só o modelo assumido (Crédito Habitação / valor
+// desejado), tal como a projeção normal usa a partir do 2º mês em diante. Isto dá-te uma previsão
+// "pura", independente do que realmente aconteceu — para comparares genuinamente "o que estava
+// previsto" com "o que aconteceu de verdade", em vez de comparares a realidade com ela própria
+// (o que dava sempre 0% de diferença, sem nunca mostrar discrepância nenhuma).
+function computeBackfilledProjection(anchorMonth){
+  const nowKey = monthKey(new Date());
+  const realByMonthLocal = {};
+  computeBalancesTimeline().forEach(r => { realByMonthLocal[r.month] = r; });
+  const anchorBal = realByMonthLocal[anchorMonth] || (() => { const b={}; ALL_ACCOUNT_KEYS.forEach(k=>b[k]=Number(state.initial[k])||0); return b; })();
+  const rates = state.settings.returnRates || { poupanca:0, investimento:0 };
+  const monthlyRatePoupanca = Math.pow(1 + (rates.poupanca||0)/100, 1/12) - 1;
+  const monthlyRateInvest = Math.pow(1 + (rates.investimento||0)/100, 1/12) - 1;
+  let cur = {};
+  OWNERS.forEach(o=>{
+    cur[accKey(o,'poupanca')] = Number(anchorBal[accKey(o,'poupanca')])||0;
+    cur[accKey(o,'investimento')] = Number(anchorBal[accKey(o,'investimento')])||0;
+    cur[accKey(o,'corrente')] = Number(anchorBal[accKey(o,'corrente')])||0; // fica fixa — o modelo não prevê a conta à ordem
+  });
+  const months = enumerateMonths(anchorMonth, nowKey);
+  const results = [{...cur, month: anchorMonth}];
+  for(let i=1;i<months.length;i++){
+    const key = months[i];
+    OWNERS.forEach(owner=>{
+      ['poupanca','investimento'].forEach(toType=>{
+        cur[accKey(owner,toType)] += computeMonthlySavingsContribution(owner, toType, false);
+      });
+      cur[accKey(owner,'poupanca')] *= (1 + monthlyRatePoupanca);
+      cur[accKey(owner,'investimento')] *= (1 + monthlyRateInvest);
+    });
+    results.push({...cur, month:key});
+  }
+  return results;
+}
 function computeProjection(monthsAhead){
   const nowKey = monthKey(new Date());
   const bal = currentBalances();
@@ -4210,7 +4257,11 @@ function computeProjection(monthsAhead){
   const monthlyRateInvest = Math.pow(1 + (rates.investimento||0)/100, 1/12) - 1;
   const results = [];
   let cur = {};
-  OWNERS.forEach(o=>{ cur[accKey(o,'poupanca')] = bal[accKey(o,'poupanca')]; cur[accKey(o,'investimento')] = bal[accKey(o,'investimento')]; });
+  OWNERS.forEach(o=>{
+    cur[accKey(o,'poupanca')] = bal[accKey(o,'poupanca')];
+    cur[accKey(o,'investimento')] = bal[accKey(o,'investimento')];
+    cur[accKey(o,'corrente')] = bal[accKey(o,'corrente')]; // fica fixa — o modelo não prevê a conta à ordem, mas também não pode assumir que é zero
+  });
   for(let i=1;i<=monthsAhead;i++){
     const key = addMonths(nowKey, i);
     OWNERS.forEach(owner=>{
@@ -4261,22 +4312,83 @@ function renderProjecoes(){
   renderSavingsAutomations();
 
   const emergencyFund = computeHouseholdEmergencyFund();
-  // Linha "Real" — histórico verdadeiro (computeBalancesTimeline) até hoje, numa cor bem
-  // distinta das 3 projetadas, para nunca se confundir tons. Termina exatamente em "hoje", onde
-  // a linha "Total do casal" projetada já começa (res10[0] = currentBalances()) — ficam a
-  // tocar-se no mesmo ponto, com cores diferentes de cada lado. Usa o gráfico alinhado por DATA
-  // real (não por índice), porque a linha real tem muito menos pontos do que a projetada — um
-  // gráfico por índice desalinhava as datas.
   const realTimeline = computeBalancesTimeline();
+  // Previsão "pura", independente da realidade: reconstruída desde o 1º mês com dados reais até
+  // hoje, usando sempre o modelo assumido (nunca transferências reais) — para poderes comparar
+  // "o que estava previsto" com "o que aconteceu de verdade" e veres a diferença entre os dois,
+  // em vez de comparares a realidade com ela própria (que dava sempre 0%).
+  const backfillAnchor = realTimeline[0] ? realTimeline[0].month : monthKey(new Date());
+  const backfilled = computeBackfilledProjection(backfillAnchor);
+  const projectedFull = [...backfilled, ...res10]; // passado "puro" + futuro, sem sobreposição (backfilled termina em "hoje", res10 começa no mês seguinte)
+  const backfilledByMonth = {};
+  backfilled.forEach(r => { backfilledByMonth[r.month] = r; });
+
+  // Projeção "da realidade": média das % de diferença real vs. previsto — só com base no
+  // histórico do AFONSO (não do casal), excluindo o mês-âncora (dá sempre 0% por definição).
+  // Aplica-se só à parte dele nos meses futuros; a parte da Leonor mantém-se sempre no valor
+  // puramente projetado, sem qualquer ajuste — mostrado a cinzento na tabela e tracejado no
+  // gráfico, para nunca se confundir com um valor real de verdade.
+  const realMonthsSorted = realTimeline.filter(r => r.month <= monthKey(new Date())).sort((a,b)=>a.month.localeCompare(b.month));
+  const pctSamples = realMonthsSorted.slice(1).map(m=>{
+    const projRow = backfilledByMonth[m.month] || m;
+    const proj = ownerRealTotal(projRow,'afonso');
+    const real = ownerRealTotal(m,'afonso');
+    return proj === 0 ? null : ((real - proj) / Math.abs(proj)) * 100;
+  }).filter(v => v != null);
+  const avgPct = pctSamples.length ? (pctSamples.reduce((s,v)=>s+v,0) / pctSamples.length) : null;
+  // Recebe a LINHA projetada (não um total já somado) — para poder ajustar só a fatia do Afonso
+  // e manter a da Leonor intocada, antes de somar as duas.
+  const estimateFromProjected = (projRow) => avgPct != null
+    ? ownerRealTotal(projRow,'afonso') * (1 + avgPct/100) + ownerRealTotal(projRow,'leonor')
+    : null;
+  const estimateHtml = (val) => `<span style="color:var(--text-dim);" title="Estimativa — ${OWNER_LABEL.afonso} ajustado pela média de ${pctSamples.length} mês(es) real(is); ${OWNER_LABEL.leonor} sem ajuste (valor projetado). Não é um valor real">${fmtMoney(val)}</span>`;
+
+  // Encontra o primeiro mês em que cada linha ultrapassa o fundo de emergência — usado para
+  // marcar esse ponto no gráfico e na tabela (ambos), tanto na linha do modelo (projetado) como
+  // na linha real/estimada (real até hoje, depois estimativa ao teu ritmo).
+  const findCrossMonth = (rows, getVal) => {
+    for(const r of rows){ if(getVal(r) >= emergencyFund.target12) return r.month; }
+    return null;
+  };
+  const projCrossMonth = findCrossMonth(projectedFull, r => householdRealTotal(r));
+  const realEstSeries = [
+    ...realTimeline,
+    ...(avgPct != null ? res10.map(r => ({ month: r.month, _estimatedTotal: estimateFromProjected(r) })) : [])
+  ];
+  const realCrossMonth = findCrossMonth(realEstSeries, r => r._estimatedTotal != null ? r._estimatedTotal : householdRealTotal(r));
+
+  const chartMarkers = [];
+  if(projCrossMonth){
+    const row = projectedFull.find(r=>r.month===projCrossMonth);
+    chartMarkers.push({ date: projCrossMonth+'-01', value: householdRealTotal(row), color:'var(--savings)', label:'🎯 fundo atingido' });
+  }
+  if(realCrossMonth){
+    const row = realEstSeries.find(r=>r.month===realCrossMonth);
+    const val = row._estimatedTotal != null ? row._estimatedTotal : householdRealTotal(row);
+    chartMarkers.push({ date: realCrossMonth+'-01', value: val, color:'#1BAF7A', label:'🎯 fundo atingido' });
+  }
+
+  // Linha "Real" — histórico verdadeiro, numa cor bem distinta das projetadas, para nunca se
+  // confundir tons. A linha "Total do casal (projetado)" agora cobre o período todo (passado e
+  // futuro), calculada sempre pelo modelo — por isso as duas linhas podem divergir de verdade no
+  // passado, mostrando se estás a poupar mais ou menos do que estava previsto. A partir de hoje,
+  // uma extensão tracejada da linha verde mostra a estimativa "ao teu ritmo real" (só a fatia do
+  // Afonso ajustada; a da Leonor mantém-se projetada).
+  const estimatedFutureSeries = avgPct != null
+    ? [{ date: realTimeline[realTimeline.length-1].month+'-01', value: householdRealTotal(realTimeline[realTimeline.length-1]) },
+       ...res10.map(r => ({ date: r.month+'-01', value: estimateFromProjected(r) }))]
+    : [];
   const chart = buildDateAlignedLineChart([
-    { color:'var(--afonso)', noDots: true, points: res10.map(r=>({date: r.month+'-01', value: ownerSavingsTotal(r,'afonso')})) },
-    { color:'var(--leonor)', noDots: true, points: res10.map(r=>({date: r.month+'-01', value: ownerSavingsTotal(r,'leonor')})) },
-    { color:'var(--savings)', noDots: true, dashed: true, points: res10.map(r=>({date: r.month+'-01', value: householdSavingsTotal(r)})) },
+    { color:'var(--afonso)', noDots: true, points: projectedFull.map(r=>({date: r.month+'-01', value: ownerRealTotal(r,'afonso')})) },
+    { color:'var(--leonor)', noDots: true, points: projectedFull.map(r=>({date: r.month+'-01', value: ownerRealTotal(r,'leonor')})) },
+    { color:'var(--savings)', noDots: true, dashed: true, points: projectedFull.map(r=>({date: r.month+'-01', value: householdRealTotal(r)})) },
     { color:'#1BAF7A', points: realTimeline.map(r=>({date: r.month+'-01', value: householdRealTotal(r)})), strokeWidth: 2.8 },
-  ], { height: 260, refLine: emergencyFund.target12, refLineLabel: `Fundo de emergência (${fmtMoney(emergencyFund.target12)})` });
+    ...(estimatedFutureSeries.length ? [{ color:'#1BAF7A', noDots: true, dashed: true, strokeWidth: 2.2, points: estimatedFutureSeries }] : []),
+  ], { height: 260, refLine: emergencyFund.target12, refLineLabel: `Fundo de emergência (${fmtMoney(emergencyFund.target12)})`, markers: chartMarkers });
   document.getElementById('proj-chart').innerHTML = chart +
     `<div class="chart-legend">
       <div class="item"><span class="dot" style="background:#1BAF7A"></span>Total do casal (real, até hoje)</div>
+      ${avgPct != null ? `<div class="item"><span class="dot" style="background:#1BAF7A; opacity:0.5;"></span>Total do casal (estimado, ao teu ritmo real)</div>` : ''}
       <div class="item"><span class="dot" style="background:var(--afonso)"></span>Afonso (projetado)</div>
       <div class="item"><span class="dot" style="background:var(--leonor)"></span>Leonor (projetado)</div>
       <div class="item"><span class="dot" style="background:var(--savings)"></span>Total do casal (projetado)</div>
@@ -4289,9 +4401,8 @@ function renderProjecoes(){
   const nowKeyForYear0 = monthKey(new Date());
   const startYear = parseInt(nowKeyForYear0.split('-')[0], 10);
   const yearGroups = {};
-  // Meses REAIS já passados este ano (desde Janeiro, ou desde o 1º mês com dados, até ao mês
-  // anterior a hoje) entram primeiro, antes de "Hoje" — para poderes comparar visualmente o
-  // ritmo real com o projetado, mês a mês, dentro do próprio Ano 0.
+  // Meses REAIS já passados este ano entram primeiro, antes de "Hoje" — comparados com a previsão
+  // PURA (computeBackfilledProjection), não com eles próprios, para mostrar a diferença real.
   const realByMonth = {};
   realTimeline.forEach(r => { realByMonth[r.month] = r; });
   const pastRealThisYear = realTimeline.filter(r => r.month.startsWith(String(startYear)) && r.month < nowKeyForYear0);
@@ -4314,29 +4425,39 @@ function renderProjecoes(){
   };
 
   let htmlYears = `<table><thead><tr><th></th><th>Ano</th><th style="text-align:right;">${OWNER_LABEL.afonso}</th><th style="text-align:right;">${OWNER_LABEL.leonor}</th><th style="text-align:right;">Total (projetado)</th><th style="text-align:right;">%</th><th style="text-align:right;">Total (real)</th></tr></thead><tbody>`;
+  const emergencyBadge = (color) => `<span title="Fundo de emergência ultrapassado aqui" style="color:${color};">🎯</span> `;
   sortedYears.forEach((year, idx)=>{
     const months = yearGroups[year];
     const lastRow = months[months.length-1];
     const yearLabel = `Ano ${idx} — ${year}`;
     const rowId = `proj-year-detail-${year}`;
-    const projTotal = householdSavingsTotal(lastRow);
+    const projTotal = householdRealTotal(lastRow);
+    const yearEstimate = (year > startYear || (year === startYear && !lastRow.isReal)) ? estimateFromProjected(lastRow) : null;
+    const yearHasProjCross = projCrossMonth && projCrossMonth.startsWith(String(year)) && projCrossMonth <= lastRow.month;
     htmlYears += `<tr class="proj-year-row" data-year-toggle="${rowId}" style="cursor:pointer;">
       <td class="proj-year-arrow">▸</td>
       <td>${yearLabel}</td>
-      <td class="num">${fmtMoney(ownerSavingsTotal(lastRow,'afonso'))}</td>
-      <td class="num">${fmtMoney(ownerSavingsTotal(lastRow,'leonor'))}</td>
-      <td class="num" style="font-weight:600;">${fmtMoney(projTotal)}</td>
+      <td class="num">${fmtMoney(ownerRealTotal(lastRow,'afonso'))}</td>
+      <td class="num">${fmtMoney(ownerRealTotal(lastRow,'leonor'))}</td>
+      <td class="num" style="font-weight:600;">${yearHasProjCross ? emergencyBadge('var(--savings)') : ''}${fmtMoney(projTotal)}</td>
       <td class="num"><span class="micro">—</span></td>
-      <td class="num"><span class="micro">—</span></td>
+      <td class="num">${yearEstimate != null ? estimateHtml(yearEstimate) : '<span class="micro">—</span>'}</td>
     </tr>`;
     htmlYears += `<tr class="proj-year-detail" id="${rowId}" style="display:none;"><td colspan="7" style="padding:6px 0 10px 0;">
       <table style="width:100%;"><tbody>`;
     months.forEach(m=>{
       const label = m.isToday ? 'Hoje' : monthLabel(m.month);
-      const mProjTotal = householdSavingsTotal(m);
+      // Para meses reais, o "projetado" vem da previsão PURA (backfilled), nunca do próprio mês
+      // real — senão estaríamos a comparar a realidade com ela mesma, sempre dando 0%.
+      const mProjRow = m.isReal ? (backfilledByMonth[m.month] || m) : m;
+      const mProjTotal = householdRealTotal(mProjRow);
       const mRealTotal = m.isReal ? householdRealTotal(m) : null;
+      const mEstimate = m.isReal ? null : estimateFromProjected(m);
       const realTag = m.isReal ? ' <span class="tag" style="color:var(--income);">real</span>' : '';
-      htmlYears += `<tr><td style="padding-left:28px; width:25%; color:var(--text-muted);">${label}${realTag}</td><td class="num">${fmtMoney(ownerSavingsTotal(m,'afonso'))}</td><td class="num">${fmtMoney(ownerSavingsTotal(m,'leonor'))}</td><td class="num">${fmtMoney(mProjTotal)}</td><td class="num">${mRealTotal!=null ? pctDiffHtml(mRealTotal, mProjTotal) : '<span class="micro">—</span>'}</td><td class="num">${mRealTotal!=null ? fmtMoney(mRealTotal) : '<span class="micro">—</span>'}</td></tr>`;
+      const realCellVal = mRealTotal!=null ? fmtMoney(mRealTotal) : (mEstimate!=null ? estimateHtml(mEstimate) : '<span class="micro">—</span>');
+      const projBadge = m.month === projCrossMonth ? emergencyBadge('var(--savings)') : '';
+      const realBadge = m.month === realCrossMonth ? emergencyBadge('#1BAF7A') : '';
+      htmlYears += `<tr><td style="padding-left:28px; width:25%; color:var(--text-muted);">${label}${realTag}</td><td class="num">${fmtMoney(ownerRealTotal(m,'afonso'))}</td><td class="num">${fmtMoney(ownerRealTotal(m,'leonor'))}</td><td class="num">${projBadge}${fmtMoney(mProjTotal)}</td><td class="num">${mRealTotal!=null ? pctDiffHtml(mRealTotal, mProjTotal) : '<span class="micro">—</span>'}</td><td class="num">${realBadge}${realCellVal}</td></tr>`;
     });
     htmlYears += '</tbody></table></td></tr>';
   });
