@@ -4266,7 +4266,15 @@ function computeProjection(monthsAhead){
     const key = addMonths(nowKey, i);
     OWNERS.forEach(owner=>{
       ['poupanca','investimento'].forEach(toType=>{
-        cur[accKey(owner,toType)] += computeMonthlySavingsContribution(owner, toType, i===1);
+        let contrib = computeMonthlySavingsContribution(owner, toType, i===1);
+        // Meses de subsídio (Jun/Nov): só na Poupança (não Investimento/Produtos), e só quando
+        // a contribuição vem do modelo assumido (não no 1º mês, que usa transferências reais).
+        // Afonso: +75% sobre o valor normal desse mês. Leonor: valor fixo de 600€ (substitui).
+        if(toType === 'poupanca' && i !== 1 && isDoubleSalaryMonth(key)){
+          if(owner === 'afonso') contrib *= 1.75;
+          else if(owner === 'leonor') contrib = 600;
+        }
+        cur[accKey(owner,toType)] += contrib;
       });
       cur[accKey(owner,'poupanca')] *= (1 + monthlyRatePoupanca);
       cur[accKey(owner,'investimento')] *= (1 + monthlyRateInvest);
