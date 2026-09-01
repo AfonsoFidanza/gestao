@@ -5202,7 +5202,10 @@ function renderCredito(){
 /* ======================= MASTER RENDER ======================= */
 function renderAll(){
   applyOwnerNames();
-  ensureRecurringGenerated();
+  // As recorrências (Salário, Renda, Poupança...) servem SÓ para as projeções — nunca geram
+  // lançamentos reais sozinhas. Cada movimento real (despesa, receita, transferência) tem de ser
+  // criado explicitamente (manualmente, ou via "Já recebi" para o Salário). Por isso
+  // ensureRecurringGenerated() deixou de ser chamada aqui.
   _cache = {}; // clear per-render memoization cache — safe to reuse within this render pass only
   renderDashboard();
   renderTransacoes();
