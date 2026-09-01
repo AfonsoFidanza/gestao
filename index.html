@@ -2185,6 +2185,11 @@ function addMonths(key, n){
   while(m<1){ m+=12; y--; }
   return y+'-'+String(m).padStart(2,'0');
 }
+function addDays(dateStr, n){
+  const d = new Date(dateStr+'T00:00:00');
+  d.setDate(d.getDate()+n);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
 function splitShares(amount, splitType, splitPercentAfonso){
   const amt = Number(amount)||0;
   if(splitType === 'percentagem'){
@@ -2442,6 +2447,57 @@ function computeBalancesTimeline(){
   return timeline;
 }
 
+// Saldo de todas as contas numa DATA EXATA (não por mês) — usado só para a tabela de projeções
+// por ciclo de pagamento (ver computeAfonsoPayCycles). Não mexe em computeBalancesTimeline nem
+// em mais nada da app — o resto continua a usar meses de calendário normalmente.
+function computeBalancesAtDate(dateCutoff){
+  let bal = {}; ALL_ACCOUNT_KEYS.forEach(k => bal[k] = Number(state.initial[k])||0);
+  state.entries.forEach(e=>{
+    if(e.date > dateCutoff) return;
+    const amt = Number(e.amount)||0;
+    if(e.type === 'receita'){
+      if(OWNERS.includes(e.owner)) bal[accKey(e.owner,'corrente')] += amt;
+    } else {
+      if(OWNERS.includes(e.owner)) bal[accKey(e.owner,'corrente')] -= amt;
+      else if(e.owner === 'conjunto'){
+        if(e.payer){
+          bal[accKey(e.payer,'corrente')] -= amt;
+        } else {
+          const shares = splitShares(amt, e.splitType, e.splitPercentAfonso);
+          bal[accKey('afonso','corrente')] -= shares.afonso;
+          bal[accKey('leonor','corrente')] -= shares.leonor;
+        }
+      }
+    }
+  });
+  state.transfers.forEach(t=>{
+    if(t.date > dateCutoff) return;
+    const amt = Number(t.amount)||0;
+    bal[accKey(t.fromOwner, t.fromType)] -= amt;
+    bal[accKey(t.toOwner, t.toType)] += amt;
+  });
+  return bal;
+}
+// Deriva os ciclos de pagamento do Afonso a partir das datas em que confirmou "Já recebi" o
+// Salário — cada uma dessas entradas marca o início de um novo ciclo. O ciclo tem o nome do mês
+// SEGUINTE ao da confirmação (ex: salário confirmado a 25/08 financia "Setembro"). O último ciclo
+// fica em aberto (isOngoing) até à próxima confirmação, e o fim é "hoje".
+function computeAfonsoPayCycles(){
+  const salaryDates = state.entries
+    .filter(e => e.owner === 'afonso' && e.type === 'receita' && e.category === 'Salário')
+    .map(e => e.date)
+    .sort();
+  if(salaryDates.length === 0) return [];
+  const today = todayISO();
+  const cycles = [];
+  salaryDates.forEach((start, i)=>{
+    const nextStart = salaryDates[i+1];
+    const end = nextStart ? addDays(nextStart, -1) : today;
+    const labelMonth = addMonths(start.slice(0,7), 1);
+    cycles.push({ start, end, labelMonth, isOngoing: !nextStart });
+  });
+  return cycles;
+}
 function currentBalances(){ const tl = computeBalancesTimeline(); return tl[tl.length-1]; }
 function ownerTotal(bal, owner){ return ACCOUNT_TYPES.reduce((s,t)=> s + (Number(bal[accKey(owner,t)])||0), 0); }
 function householdTotal(bal){ return ALL_ACCOUNT_KEYS.reduce((s,k)=> s + (Number(bal[k])||0), 0); }
@@ -4165,10 +4221,17 @@ function computeFallbackMonthlyDeltasFromRecurring(){
   return deltas;
 }
 function computeActualTransferToTypeThisMonth(owner, toType){
+  // Usa o mesmo CICLO (desde a última vez que confirmaste "Já recebi") que o resto da app —
+  // não o mês de calendário. Ex: se confirmas o salário de Setembro a 25 de Agosto, tudo o que
+  // transferires a partir daí conta para o ciclo "Setembro", mesmo com data de calendário em Agosto.
   const mKey = monthKey(new Date());
+  const today = todayISO();
+  const cycleStart = computeCycleStart(owner);
   let net = 0;
   state.transfers.forEach(t=>{
-    if(t.fromOwner !== owner || t.toOwner !== owner || t.date.slice(0,7) !== mKey) return;
+    if(t.fromOwner !== owner || t.toOwner !== owner) return;
+    const inWindow = cycleStart ? (t.date >= cycleStart && t.date <= today) : (t.date.slice(0,7) === mKey);
+    if(!inWindow) return;
     if(t.considerarPoupanca === false) return;
     if(t.toType === toType) net += Number(t.amount)||0;
     if(t.fromType === toType) net -= Number(t.amount)||0;
@@ -4413,11 +4476,22 @@ function renderProjecoes(){
   // PURA (computeBackfilledProjection), não com eles próprios, para mostrar a diferença real.
   const realByMonth = {};
   realTimeline.forEach(r => { realByMonth[r.month] = r; });
-  const pastRealThisYear = realTimeline.filter(r => r.month.startsWith(String(startYear)) && r.month < nowKeyForYear0);
-  yearGroups[startYear] = [
-    ...pastRealThisYear.map(r => ({ ...r, isReal: true })),
-    { ...currentBalances(), month: nowKeyForYear0, isToday: true, isReal: true }
-  ];
+  // Os meses "reais" da tabela seguem os CICLOS de pagamento do Afonso (desde o "Já recebi" do
+  // Salário até ao próximo), não o calendário — o ciclo tem o nome do mês que financia (ex: um
+  // salário confirmado a 25/08 chama-se "Setembro"). O ciclo em curso conta como "hoje". Se ainda
+  // não houver nenhum Salário confirmado, cai-se de volta ao calendário normal.
+  const payCycles = computeAfonsoPayCycles();
+  const pastRealThisYear = payCycles.length
+    ? payCycles
+        .filter(c => c.labelMonth.startsWith(String(startYear)) && c.labelMonth <= nowKeyForYear0)
+        .map(c => ({ ...computeBalancesAtDate(c.end), month: c.labelMonth, isReal: true, isToday: c.isOngoing }))
+    : realTimeline.filter(r => r.month.startsWith(String(startYear)) && r.month < nowKeyForYear0);
+  yearGroups[startYear] = payCycles.length
+    ? pastRealThisYear
+    : [
+        ...pastRealThisYear.map(r => ({ ...r, isReal: true })),
+        { ...currentBalances(), month: nowKeyForYear0, isToday: true, isReal: true }
+      ];
   res10.forEach(row=>{
     const y = parseInt(row.month.split('-')[0], 10);
     (yearGroups[y] ||= []).push(row);
@@ -4432,7 +4506,7 @@ function renderProjecoes(){
     return `<span style="color:${color};">${sign}${pct.toFixed(1)}%</span>`;
   };
 
-  let htmlYears = `<table><thead><tr><th></th><th>Ano</th><th style="text-align:right;">${OWNER_LABEL.afonso}</th><th style="text-align:right;">${OWNER_LABEL.leonor}</th><th style="text-align:right;">Total (projetado)</th><th style="text-align:right;">%</th><th style="text-align:right;">Total (real)</th></tr></thead><tbody>`;
+  let htmlYears = `<table><thead><tr><th></th><th>Ano</th><th style="text-align:right;">${OWNER_LABEL.afonso}</th><th style="text-align:right;">${OWNER_LABEL.leonor}</th><th style="text-align:right;">Total (projetado)</th><th style="text-align:right;">% (apenas Afonso)</th><th style="text-align:right;">Total (real)</th></tr></thead><tbody>`;
   const emergencyBadge = (color) => `<span title="Fundo de emergência ultrapassado aqui" style="color:${color};">🎯</span> `;
   sortedYears.forEach((year, idx)=>{
     const months = yearGroups[year];
@@ -4454,7 +4528,7 @@ function renderProjecoes(){
     htmlYears += `<tr class="proj-year-detail" id="${rowId}" style="display:none;"><td colspan="7" style="padding:6px 0 10px 0;">
       <table style="width:100%;"><tbody>`;
     months.forEach(m=>{
-      const label = m.isToday ? 'Hoje' : monthLabel(m.month);
+      const label = monthLabel(m.month);
       // Para meses reais, o "projetado" vem da previsão PURA (backfilled), nunca do próprio mês
       // real — senão estaríamos a comparar a realidade com ela mesma, sempre dando 0%.
       const mProjRow = m.isReal ? (backfilledByMonth[m.month] || m) : m;
@@ -4465,7 +4539,7 @@ function renderProjecoes(){
       const realCellVal = mRealTotal!=null ? fmtMoney(mRealTotal) : (mEstimate!=null ? estimateHtml(mEstimate) : '<span class="micro">—</span>');
       const projBadge = m.month === projCrossMonth ? emergencyBadge('var(--savings)') : '';
       const realBadge = m.month === realCrossMonth ? emergencyBadge('#1BAF7A') : '';
-      htmlYears += `<tr><td style="padding-left:28px; width:25%; color:var(--text-muted);">${label}${realTag}</td><td class="num">${fmtMoney(ownerRealTotal(m,'afonso'))}</td><td class="num">${fmtMoney(ownerRealTotal(m,'leonor'))}</td><td class="num">${projBadge}${fmtMoney(mProjTotal)}</td><td class="num">${mRealTotal!=null ? pctDiffHtml(mRealTotal, mProjTotal) : '<span class="micro">—</span>'}</td><td class="num">${realBadge}${realCellVal}</td></tr>`;
+      htmlYears += `<tr><td style="padding-left:28px; width:25%; color:var(--text-muted);">${label}${realTag}</td><td class="num">${fmtMoney(ownerRealTotal(m,'afonso'))}</td><td class="num">${fmtMoney(ownerRealTotal(m,'leonor'))}</td><td class="num">${projBadge}${fmtMoney(mProjTotal)}</td><td class="num">${mRealTotal!=null ? pctDiffHtml(ownerRealTotal(m,'afonso'), ownerRealTotal(mProjRow,'afonso')) : '<span class="micro">—</span>'}</td><td class="num">${realBadge}${realCellVal}</td></tr>`;
     });
     htmlYears += '</tbody></table></td></tr>';
   });
