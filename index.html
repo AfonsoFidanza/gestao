@@ -1035,7 +1035,7 @@
       <p class="page-sub">Com base nas tuas recorrências e na média do histórico recente, esta é a estimativa de como o dinheiro do casal evolui.</p>
 
       <div class="card">
-        <div class="form-row" style="align-items:flex-end; margin-bottom:0;">
+        <div class="form-row" style="align-items:flex-start; margin-bottom:0;">
           <div class="field" style="max-width:220px;">
             <label>Margem de segurança (%)</label>
             <input type="number" id="proj-folga" min="0" max="100" step="1">
@@ -1045,7 +1045,7 @@
             <label>Retorno anual — Poupança (%)</label>
             <input type="number" id="proj-rate-poupanca" min="0" max="100" step="0.1">
           </div>
-          <div class="field" style="max-width:200px;">
+          <div class="field" style="max-width:260px;">
             <label>Retorno anual — Investimentos/PPR (%)</label>
             <input type="number" id="proj-rate-investimento" min="0" max="100" step="0.1">
           </div>
@@ -1208,15 +1208,7 @@
         <div class="form-row">
           <div class="field"><label>Dívida inicial (€)</label><input type="number" id="cred-divida-inicial" min="0" step="1"></div>
           <div class="field"><label>Início do crédito (mês)</label>
-            <div class="form-row" style="gap:8px;">
-              <select id="cred-data-inicio-mes" style="flex:1;">
-                <option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option>
-                <option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option>
-                <option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option>
-                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
-              </select>
-              <select id="cred-data-inicio-ano" style="flex:1;"></select>
-            </div>
+            <input type="month" id="cred-data-inicio">
           </div>
           <div class="field"><label>Taxa de juro anual (%)</label><input type="number" id="cred-taxa" min="0" step="0.01"></div>
           <div class="field"><label>Prestação mensal (€)</label><input type="number" id="cred-prestacao" min="0" step="1"></div>
@@ -1258,11 +1250,11 @@
       </div>
 
       <div class="grid grid-2">
-        <div class="card card-center"><div class="card-title">Sem amortização extra</div><div id="cred-summary-sem"></div></div>
-        <div class="card card-center"><div class="card-title">Com o teu plano</div><div id="cred-summary-com"></div></div>
+        <div class="card card-center" style="background:#FBEAEA;"><div class="card-title">Sem amortização extra</div><div id="cred-summary-sem"></div></div>
+        <div class="card card-center" style="background:#E9F6EF;"><div class="card-title">Com o teu plano</div><div id="cred-summary-com"></div></div>
       </div>
 
-      <div class="card" id="cred-savings-card" style="display:none;">
+      <div class="card" id="cred-savings-card" style="display:none; background:#E9F6EF;">
         <div class="card-title">Quanto poupas com o teu plano</div>
         <div id="cred-savings-content"></div>
       </div>
@@ -2020,7 +2012,8 @@ function defaultState(){
       salaryAmount: 0,
       templateId: null,
       checked: {},
-      transferred: false
+      transferred: false,
+      previousSnapshot: null
     },
     mortgage: { principalInicial: 0, dataInicio: '', rate: 0, installment: 0, baseAfonso: 0, baseLeonor: 0, pctPoupanca: 70, pctProdutos: 10, pctAmortizacao: 20, pctAnnualBonus: 0, idadeAfonso: 0, idadeLeonor: 0, startMonth: '2027-01', payer: 'afonso', houseValue: 0 },
     settings: { personalBudget: { afonso:0, leonor:0 }, ownerNames: { afonso:'', leonor:'' }, projectionFolgaPct: 10, returnRates: { poupanca:1, investimento:5 }, irsJovemStartYear: { afonso: null, leonor: null }, desiredMonthlySavings: { afonso: null, leonor: null }, lastIncomeConfirmedDate: { afonso: {}, leonor: {} } }
@@ -3611,6 +3604,7 @@ function renderCgdPanel(){
       ? `<button class="btn small" style="background:var(--income); color:#FFFFFF; margin-bottom:12px;" data-cgd-salario>💶 Já recebi: Salário</button>
          <p class="helptext" style="margin-top:0;">Confirma aqui quando o salário cair na CGD — o checklist abaixo reinicia-se e ficas pronto para ires marcando as saídas fixas à medida que as pagas.</p>`
       : `<div class="allowance-row"><span>Salário recebido</span><span class="num pos">${fmtMoney(state.cgd.salaryAmount)}</span></div>
+         ${state.cgd.previousSnapshot ? `<button class="icon-btn" data-cgd-undo-salario style="margin-bottom:8px;">↺ Desfazer "Já recebi: Salário"</button>` : ''}
          <p class="helptext" style="margin-top:-2px; margin-bottom:10px;">Marca cada saída à medida que a pagas na realidade — é só para acompanhares, não afeta nenhum cálculo. Os valores são editáveis e ficam guardados para os próximos meses.</p>
          ${itemsHtml}
          <hr style="border:none; border-top:1px solid var(--border); margin:12px 0;">
@@ -3623,6 +3617,16 @@ function renderCgdPanel(){
   `;
   const btnSalario = container.querySelector('[data-cgd-salario]');
   if(btnSalario) btnSalario.addEventListener('click', ()=>{
+    // Guarda o estado anterior antes de mudar nada, para o botão "Desfazer" poder repor tudo
+    // exatamente como estava (checklist, ciclo, tudo).
+    state.cgd.previousSnapshot = {
+      salaryAmount: state.cgd.salaryAmount,
+      templateId: state.cgd.templateId,
+      month: state.cgd.month,
+      checked: { ...state.cgd.checked },
+      transferred: state.cgd.transferred,
+      lastIncomeConfirmedDate: { ...state.settings.lastIncomeConfirmedDate.afonso },
+    };
     const tpl = state.recurring.find(t => t.active && t.kind==='receita' && t.owner==='afonso' && t.category==='Salário');
     state.cgd.salaryAmount = tpl ? templateAmountForMonth(tpl, mKey) : 0;
     state.cgd.templateId = tpl ? tpl.id : null;
@@ -3642,6 +3646,21 @@ function renderCgdPanel(){
     saveState();
     renderAll();
     showToast('Salário confirmado na CGD — novo ciclo iniciado, checklist reiniciado.');
+  });
+  const btnUndoSalario = container.querySelector('[data-cgd-undo-salario]');
+  if(btnUndoSalario) btnUndoSalario.addEventListener('click', ()=>{
+    const snap = state.cgd.previousSnapshot;
+    if(!snap) return;
+    state.cgd.salaryAmount = snap.salaryAmount;
+    state.cgd.templateId = snap.templateId;
+    state.cgd.month = snap.month;
+    state.cgd.checked = snap.checked;
+    state.cgd.transferred = snap.transferred;
+    state.settings.lastIncomeConfirmedDate.afonso = snap.lastIncomeConfirmedDate;
+    state.cgd.previousSnapshot = null;
+    saveState();
+    renderAll();
+    showToast('Confirmação do salário desfeita — voltaste ao ciclo anterior.');
   });
   container.querySelectorAll('[data-cgd-check]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
@@ -4702,6 +4721,17 @@ function renderProjEmergencyFund(){
     container.innerHTML = '<div class="empty">Regista despesas marcadas como "fundo de emergência" para calcular este fundo.</div>';
     return;
   }
+  // Simulação: recalcula o fundo de emergência assumindo a Renda a 732,67€ em vez do valor atual
+  // da recorrência — muda o valor só temporariamente, calcula, e repõe de imediato (nunca fica
+  // guardado nem afeta mais nada na app).
+  const rendaTpl = state.recurring.find(t => t.category === 'Renda' && t.kind === 'despesa');
+  let fAlt = null;
+  if(rendaTpl){
+    const originalAmount = rendaTpl.amount;
+    rendaTpl.amount = 732.67;
+    fAlt = computeHouseholdEmergencyFund();
+    rendaTpl.amount = originalAmount;
+  }
   const pct12 = f.target12 > 0 ? Math.min(100, (f.totalSavings/f.target12)*100) : 0;
   const pct18 = f.target18 > 0 ? Math.min(100, (f.totalSavings/f.target18)*100) : 0;
   container.innerHTML = `
@@ -4715,6 +4745,15 @@ function renderProjEmergencyFund(){
     <div class="gauge-track"><div class="gauge-fill" style="width:${pct12}%; background:${pct12>=100?'var(--income)':'var(--savings)'};"></div></div>
     <div class="micro">18 meses</div>
     <div class="gauge-track"><div class="gauge-fill" style="width:${pct18}%; background:${pct18>=100?'var(--income)':'var(--savings)'};"></div></div>
+    ${fAlt ? `
+    <hr style="border:none; border-top:1px solid var(--border); margin:16px 0;">
+    <p style="margin:0 0 10px 0; color:var(--text-muted); font-size:13px;">Simulação — se a Renda fosse <strong style="color:var(--text)">732,67€</strong> em vez do valor atual da recorrência (${fmtMoney(rendaTpl.amount)}):</p>
+    <div class="grid grid-3">
+      <div class="stat"><div class="lbl">Média essencial/mês</div><div class="val">${fmtMoney(fAlt.avgEssential)}</div></div>
+      <div class="stat"><div class="lbl">Necessário p/ 12 meses</div><div class="val gold">${fmtMoney(fAlt.target12)}</div></div>
+      <div class="stat"><div class="lbl">Necessário p/ 18 meses</div><div class="val gold">${fmtMoney(fAlt.target18)}</div></div>
+    </div>
+    ` : ''}
   `;
 }
 
@@ -5160,26 +5199,9 @@ function simulateMortgage(withExtra){
 function renderCreditoLoan(){
   document.getElementById('cred-divida-inicial').value = state.mortgage.principalInicial || '';
   {
-    // Início do crédito: 2 selects (mês + ano), em vez de um <input type="month"> — este tipo de
-    // input não é suportado no Safari (cai para texto livre), o que permitia guardar valores
-    // inválidos como "dezembro" em vez de uma data real. Com selects, é sempre um valor válido.
-    const anoSelect = document.getElementById('cred-data-inicio-ano');
-    if(!anoSelect.dataset.filled){
-      const nowY = new Date().getFullYear();
-      for(let y = nowY - 10; y <= nowY + 15; y++){
-        anoSelect.insertAdjacentHTML('beforeend', `<option value="${y}">${y}</option>`);
-      }
-      anoSelect.dataset.filled = '1';
-    }
-    const m = /^(\d{4})-(\d{2})$/.exec(state.mortgage.dataInicio || '');
-    if(m){
-      document.getElementById('cred-data-inicio-ano').value = m[1];
-      document.getElementById('cred-data-inicio-mes').value = m[2];
-    } else {
-      const now = new Date();
-      document.getElementById('cred-data-inicio-ano').value = String(now.getFullYear());
-      document.getElementById('cred-data-inicio-mes').value = String(now.getMonth()+1).padStart(2,'0');
-    }
+    document.getElementById('cred-data-inicio').value = /^\d{4}-\d{2}$/.test(state.mortgage.dataInicio || '')
+      ? state.mortgage.dataInicio
+      : monthKey(new Date());
   }
   document.getElementById('cred-divida-atual-calc').textContent = fmtMoney(computeCurrentMortgageDebt());
   document.getElementById('cred-valor-casa').value = state.mortgage.houseValue || '';
@@ -5210,9 +5232,9 @@ function renderCreditoAllocationBreakdown(){
       <div class="val gold">${fmtMoney(totals.base)}</div>
     </div>
     <div class="grid grid-3" style="margin-bottom:20px;">
-      <div class="stat"><div class="lbl" style="color:var(--income);">● Poupança (casal)</div><div class="val">${fmtMoney(totals.poupanca)}</div></div>
-      <div class="stat"><div class="lbl" style="color:var(--invest);">● Produtos (casal)</div><div class="val">${fmtMoney(totals.produtos)}</div></div>
-      <div class="stat"><div class="lbl" style="color:var(--expense);">● Amortização (casal)</div><div class="val">${fmtMoney(totals.amortizacao)}</div></div>
+      <div class="stat" style="background:#E7ECF1;"><div class="lbl" style="color:var(--income);">● Poupança (casal)</div><div class="val">${fmtMoney(totals.poupanca)}</div></div>
+      <div class="stat" style="background:#E7ECF1;"><div class="lbl" style="color:var(--invest);">● Produtos (casal)</div><div class="val">${fmtMoney(totals.produtos)}</div></div>
+      <div class="stat" style="background:#E7ECF1;"><div class="lbl" style="color:var(--expense);">● Amortização (casal)</div><div class="val">${fmtMoney(totals.amortizacao)}</div></div>
     </div>
   `;
   OWNERS.forEach(owner=>{
@@ -6245,7 +6267,8 @@ document.getElementById('calc-ganhos-btn').addEventListener('click', ()=>{
 /* ======================= FORM HANDLERS: CRÉDITO HABITAÇÃO ======================= */
 document.getElementById('cred-save-loan').addEventListener('click', ()=>{
   state.mortgage.principalInicial = parseFloat(document.getElementById('cred-divida-inicial').value) || 0;
-  state.mortgage.dataInicio = document.getElementById('cred-data-inicio-ano').value + '-' + document.getElementById('cred-data-inicio-mes').value;
+  const dataInicioRaw = document.getElementById('cred-data-inicio').value;
+  state.mortgage.dataInicio = /^\d{4}-\d{2}$/.test(dataInicioRaw) ? dataInicioRaw : monthKey(new Date());
   state.mortgage.houseValue = parseFloat(document.getElementById('cred-valor-casa').value) || 0;
   state.mortgage.rate = parseFloat(document.getElementById('cred-taxa').value) || 0;
   state.mortgage.installment = parseFloat(document.getElementById('cred-prestacao').value) || 0;
