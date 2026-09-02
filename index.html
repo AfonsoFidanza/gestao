@@ -112,6 +112,7 @@
   @media (max-width:900px){ .grid-3, .grid-2{ grid-template-columns:1fr; } }
 
   .subtabs{ display:flex; gap:4px; margin-bottom:18px; border-bottom:1px solid var(--border-soft); overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  #view-dashboard.blur-values .money-blur{ filter:blur(6px); transition:filter 0.15s; user-select:none; }
   .subtabs::-webkit-scrollbar{ display:none; }
   .subtabs button{ all:unset; padding:9px 16px; font-size:13.5px; color:var(--text-muted); border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
   .subtabs button.active{ color:var(--paper); border-bottom-color:var(--savings); }
@@ -457,7 +458,10 @@
 
     <!-- ============ DASHBOARD ============ -->
     <section id="view-dashboard" class="view active">
-      <h1 class="page-title">Painel</h1>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <h1 class="page-title">Painel</h1>
+        <button class="icon-btn" id="blur-toggle-btn" title="Esconder/mostrar valores" style="margin-top:6px;">Esconder valores</button>
+      </div>
 
       <div class="subtabs" data-group="dashboard">
         <button class="active" data-target="sub-dash-afonso"><span data-owner-name="afonso">Afonso</span></button>
@@ -470,7 +474,7 @@
           <div>
             <div class="hero-label">Património de Afonso</div>
             <div style="display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;">
-              <div class="hero-value" id="hero-afonso-total">€0,00</div>
+              <div class="hero-value money-blur" id="hero-afonso-total">€0,00</div>
               <div id="afonso-hero-legend" style="display:flex; gap:14px; font-size:14px; color:#DCE6EF; flex-wrap:wrap;"></div>
             </div>
           </div>
@@ -530,7 +534,7 @@
           <div>
             <div class="hero-label">Património de Leonor</div>
             <div style="display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;">
-              <div class="hero-value" id="hero-leonor-total">€0,00</div>
+              <div class="hero-value money-blur" id="hero-leonor-total">€0,00</div>
               <div id="leonor-hero-legend" style="display:flex; gap:14px; font-size:14px; color:#DCE6EF; flex-wrap:wrap;"></div>
             </div>
           </div>
@@ -586,7 +590,7 @@
           <div>
             <div class="hero-label">Património do casal</div>
             <div style="display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;">
-              <div class="hero-value" id="hero-conjunto-total">€0,00</div>
+              <div class="hero-value money-blur" id="hero-conjunto-total">€0,00</div>
               <div id="conjunto-hero-legend" style="display:flex; gap:14px; font-size:14px; color:#DCE6EF; flex-wrap:wrap;"></div>
             </div>
           </div>
@@ -2016,7 +2020,7 @@ function defaultState(){
       previousSnapshot: null
     },
     mortgage: { principalInicial: 0, dataInicio: '', rate: 0, installment: 0, baseAfonso: 0, baseLeonor: 0, pctPoupanca: 70, pctProdutos: 10, pctAmortizacao: 20, pctAnnualBonus: 0, idadeAfonso: 0, idadeLeonor: 0, startMonth: '2027-01', payer: 'afonso', houseValue: 0 },
-    settings: { personalBudget: { afonso:0, leonor:0 }, ownerNames: { afonso:'', leonor:'' }, projectionFolgaPct: 10, returnRates: { poupanca:1, investimento:5 }, irsJovemStartYear: { afonso: null, leonor: null }, desiredMonthlySavings: { afonso: null, leonor: null }, lastIncomeConfirmedDate: { afonso: {}, leonor: {} } }
+    settings: { personalBudget: { afonso:0, leonor:0 }, ownerNames: { afonso:'', leonor:'' }, projectionFolgaPct: 10, returnRates: { poupanca:1, investimento:5 }, irsJovemStartYear: { afonso: null, leonor: null }, desiredMonthlySavings: { afonso: null, leonor: null }, lastIncomeConfirmedDate: { afonso: {}, leonor: {} }, blurValues: false }
   };
 }
 
@@ -2921,7 +2925,7 @@ function buildCompositionBar(segments){
   return `<div style="display:flex; height:12px; border-radius:6px; overflow:hidden; gap:2px; background:rgba(255,255,255,0.12);">${bars}</div>`;
 }
 function buildCompositionLegend(segments){
-  return segments.map(x => `<span style="display:flex; align-items:center; gap:6px;"><span style="width:9px; height:9px; border-radius:2px; background:${x.color}; flex-shrink:0;"></span>${x.label} <span style="font-family:var(--font-mono); color:#FFFFFF;">${fmtMoney(x.value)}</span></span>`).join('');
+  return segments.map(x => `<span style="display:flex; align-items:center; gap:6px;"><span style="width:9px; height:9px; border-radius:2px; background:${x.color}; flex-shrink:0;"></span>${x.label} <span class="money-blur" style="font-family:var(--font-mono); color:#FFFFFF;">${fmtMoney(x.value)}</span></span>`).join('');
 }
 function buildDateAlignedLineChart(series, opts){
   opts = opts || {};
@@ -3812,10 +3816,10 @@ function buildLeaderDonut(segments){
       lines += `<path d="M${l.px.toFixed(1)},${l.py.toFixed(1)} Q${tickX.toFixed(1)},${tickY.toFixed(1)} ${columnX.toFixed(1)},${l.ly.toFixed(1)}" fill="none" stroke="var(--text-dim)" stroke-width="1"/>`;
     }
     if(l.seg.sub){
-      lines += `<text x="${textX.toFixed(1)}" y="${(l.ly).toFixed(1)}" font-size="${fontSize}" fill="var(--text-primary)" font-family="var(--font-mono)" text-anchor="${textAnchor}">${l.seg.label} ${fmtMoney(l.val)}</text>`;
-      lines += `<text x="${textX.toFixed(1)}" y="${(l.ly+15).toFixed(1)}" font-size="${fontSize}" fill="var(--text-dim)" font-family="var(--font-mono)" text-anchor="${textAnchor}">${l.seg.sub}</text>`;
+      lines += `<text x="${textX.toFixed(1)}" y="${(l.ly).toFixed(1)}" font-size="${fontSize}" fill="var(--text-primary)" font-family="var(--font-mono)" text-anchor="${textAnchor}">${l.seg.label} <tspan class="money-blur">${fmtMoney(l.val)}</tspan></text>`;
+      lines += `<text x="${textX.toFixed(1)}" y="${(l.ly+15).toFixed(1)}" font-size="${fontSize}" fill="var(--text-dim)" font-family="var(--font-mono)" text-anchor="${textAnchor}" class="money-blur">${l.seg.sub}</text>`;
     } else {
-      lines += `<text x="${textX.toFixed(1)}" y="${(l.ly+4).toFixed(1)}" font-size="${fontSize}" fill="var(--text-primary)" font-family="var(--font-mono)" text-anchor="${textAnchor}">${l.seg.label} ${fmtMoney(l.val)}</text>`;
+      lines += `<text x="${textX.toFixed(1)}" y="${(l.ly+4).toFixed(1)}" font-size="${fontSize}" fill="var(--text-primary)" font-family="var(--font-mono)" text-anchor="${textAnchor}">${l.seg.label} <tspan class="money-blur">${fmtMoney(l.val)}</tspan></text>`;
     }
   });
   return `<div style="width:100%; overflow-x:auto;"><svg viewBox="0 0 ${viewW.toFixed(0)} ${height}" width="${viewW.toFixed(0)}" height="${height}" style="display:block; margin:0 auto;">${arcs}${lines}</svg></div>`;
@@ -5393,6 +5397,7 @@ function renderCredito(){
 /* ======================= MASTER RENDER ======================= */
 function renderAll(){
   applyOwnerNames();
+  if(typeof applyBlurState === 'function') applyBlurState();
   // As recorrências (Salário, Renda, Poupança...) servem SÓ para as projeções — nunca geram
   // lançamentos reais sozinhas. Cada movimento real (despesa, receita, transferência) tem de ser
   // criado explicitamente (manualmente, ou via "Já recebi" para o Salário). Por isso
@@ -6743,6 +6748,19 @@ document.addEventListener('click', (ev)=>{
   document.getElementById('salario-data').value = todayISO();
   document.getElementById('salario-modal').classList.add('show');
 });
+const blurToggleBtn = document.getElementById('blur-toggle-btn');
+function applyBlurState(){
+  const dash = document.getElementById('view-dashboard');
+  const on = !!(state.settings && state.settings.blurValues);
+  dash.classList.toggle('blur-values', on);
+  blurToggleBtn.textContent = on ? 'Mostrar valores' : 'Esconder valores';
+}
+blurToggleBtn.addEventListener('click', ()=>{
+  state.settings.blurValues = !state.settings.blurValues;
+  applyBlurState();
+  saveState();
+});
+applyBlurState();
 document.getElementById('salario-cancel').addEventListener('click', ()=>{
   document.getElementById('salario-modal').classList.remove('show');
   salarioModalOwner = null;
