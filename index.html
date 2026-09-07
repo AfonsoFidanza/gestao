@@ -2,7 +2,7 @@
 <html lang="pt-PT">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Gestão Financeira Pessoal</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -70,7 +70,7 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
-  body{ background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:14.5px; line-height:1.5; min-height:100vh; }
+  body{ background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:14.5px; line-height:1.5; min-height:100vh; overflow-x:hidden; }
   ::selection{ background:#BFD6E8; color:#0F1E33; }
   button{ font-family:inherit; cursor:pointer; }
   input, select, textarea{ font-family:inherit; font-size:inherit; }
@@ -785,6 +785,22 @@
             </div>
           </div>
           <div id="tabela-transacoes"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Gasto por categoria ao longo do tempo</div>
+          <div class="form-row" style="align-items:flex-end; margin-bottom:10px;">
+            <div class="field" style="max-width:260px;">
+              <label>Categoria</label>
+              <select id="cat-trend-select">
+                <option value="">— escolhe categoria —</option>
+              </select>
+            </div>
+            <div class="field checkbox" style="flex:1;">
+              <input type="checkbox" id="cat-trend-compare">
+              <label for="cat-trend-compare">Comparar com o ano anterior</label>
+            </div>
+          </div>
+          <div id="cat-trend-chart"></div>
         </div>
         <div class="card">
           <div class="card-title">Histórico de pagamentos confirmados</div>
@@ -3008,7 +3024,7 @@ function buildMultiLineChart(series, opts){
   const range = max - min;
   const n = labels.length;
   const stepX = n>1 ? (width-padL-padR)/(n-1) : 0;
-  let paths = '';
+  let paths = '', valueDots = '', valueLabels = '';
   series.forEach(s=>{
     const xy = s.points.map((p,i)=>{
       const x = padL + i*stepX;
@@ -3016,9 +3032,23 @@ function buildMultiLineChart(series, opts){
       return [x,y];
     });
     const d = xy.map((p,i)=> (i===0?'M':'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.2"/>`;
+    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.2"${s.dashed ? ' stroke-dasharray="6 4"' : ''}/>`;
+    if(opts.showValues){
+      xy.forEach((p,i)=>{
+        const val = s.points[i].value;
+        if(!val) return; // sem marcar os meses a 0€, só sobrecarregava o gráfico sem dizer nada
+        valueDots += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${s.color}"/>`;
+        const labelText = fmtMoney(val);
+        const labelY = p[1]-9;
+        const boxW = labelText.length * fs * 0.62;
+        // Caixa de fundo (cor do cartão) por trás do texto — garante que o valor nunca fica em
+        // cima da linha, mesmo quando o ponto está perto do topo/fundo do gráfico.
+        valueLabels += `<rect x="${(p[0]-boxW/2).toFixed(1)}" y="${(labelY-fs).toFixed(1)}" width="${boxW.toFixed(1)}" height="${(fs*1.3).toFixed(1)}" fill="var(--surface)" rx="3"/>
+        <text x="${p[0].toFixed(1)}" y="${labelY.toFixed(1)}" font-size="${fs}" fill="${s.color}" font-family="var(--font-mono)" text-anchor="middle">${labelText}</text>`;
+      });
+    }
   });
-  const labelEvery = Math.max(1, Math.ceil(n/8));
+  const labelEvery = opts.labelEvery || Math.max(1, Math.ceil(n/8));
   let labelEls = '';
   labels.forEach((l,i)=>{
     if(i % labelEvery === 0 || i===n-1){
@@ -3039,6 +3069,8 @@ function buildMultiLineChart(series, opts){
     <text x="4" y="${height-padB}" font-size="${fs}" fill="var(--text-dim)" font-family="var(--font-mono)">${fmtMoney(min)}</text>
     ${paths}
     ${refLineEl}
+    ${valueDots}
+    ${valueLabels}
     ${labelEls}
   </svg>`;
 }
@@ -3822,7 +3854,7 @@ function buildLeaderDonut(segments){
       lines += `<text x="${textX.toFixed(1)}" y="${(l.ly+4).toFixed(1)}" font-size="${fontSize}" fill="var(--text-primary)" font-family="var(--font-mono)" text-anchor="${textAnchor}">${l.seg.label} <tspan class="money-blur">${fmtMoney(l.val)}</tspan></text>`;
     }
   });
-  return `<div style="width:100%; overflow-x:auto;"><svg viewBox="0 0 ${viewW.toFixed(0)} ${height}" width="${viewW.toFixed(0)}" height="${height}" style="display:block; margin:0 auto;">${arcs}${lines}</svg></div>`;
+  return `<svg viewBox="0 0 ${viewW.toFixed(0)} ${height}" width="100%" style="display:block; max-width:${viewW.toFixed(0)}px; height:auto; margin:0 auto;">${arcs}${lines}</svg>`;
 }
 function renderSavingsAdvice(owner){
   const input = document.getElementById(`${owner}-budget`);
@@ -3925,8 +3957,51 @@ function renderFundoEmergenciaLista(){
   container.innerHTML = html;
 }
 let expandedTxMonths = null;
+function computeCategoryMonthlyTotals(category, year){
+  const totals = new Array(12).fill(0);
+  state.entries.forEach(e=>{
+    if(e.type !== 'despesa' || e.category !== category) return;
+    const [y,m] = e.date.split('-');
+    if(parseInt(y,10) !== year) return;
+    totals[parseInt(m,10)-1] += Number(e.amount)||0;
+  });
+  return totals;
+}
+function renderCategoryTrend(){
+  const select = document.getElementById('cat-trend-select');
+  if(!select) return;
+  // Só preenche as opções uma vez — repopular a cada render perdia a seleção do utilizador.
+  if(!select.dataset.filled){
+    CAT_DESPESA.forEach(cat=>{
+      select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`);
+    });
+    select.dataset.filled = '1';
+  }
+  const category = select.value;
+  const compare = document.getElementById('cat-trend-compare').checked;
+  const container = document.getElementById('cat-trend-chart');
+  if(!category){
+    container.innerHTML = '<p class="empty">Escolhe uma categoria para veres a evolução mensal do gasto.</p>';
+    return;
+  }
+  const monthLabelsShort = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const nowYear = new Date().getFullYear();
+  const curTotals = computeCategoryMonthlyTotals(category, nowYear);
+  const series = [{ color:'var(--savings)', points: curTotals.map((v,i)=>({label:monthLabelsShort[i], value:v})) }];
+  if(compare){
+    const prevTotals = computeCategoryMonthlyTotals(category, nowYear-1);
+    series.push({ color:'var(--text-dim)', dashed:true, points: prevTotals.map((v,i)=>({label:monthLabelsShort[i], value:v})) });
+  }
+  const chart = buildMultiLineChart(series, { height: 240, showValues: true, labelEvery: 1 });
+  const legend = `<div class="chart-legend">
+    <div class="item"><span class="dot" style="background:var(--savings);"></span>${escapeHtml(category)} — ${nowYear}</div>
+    ${compare ? `<div class="item"><span class="dot" style="background:var(--text-dim);"></span>${escapeHtml(category)} — ${nowYear-1} (ano anterior)</div>` : ''}
+  </div>`;
+  container.innerHTML = chart + legend;
+}
 function renderTransacoes(){
   renderReembolsoHistory();
+  renderCategoryTrend();
   const filterTipo = document.getElementById('filter-tipo').value;
   const filterQuem = document.getElementById('filter-quem').value;
   const rows = [...state.entries]
@@ -5675,6 +5750,8 @@ document.getElementById('form-transacao').addEventListener('submit', (ev)=>{
 
 document.getElementById('filter-tipo').addEventListener('change', renderTransacoes);
 document.getElementById('filter-quem').addEventListener('change', renderTransacoes);
+document.getElementById('cat-trend-select').addEventListener('change', renderCategoryTrend);
+document.getElementById('cat-trend-compare').addEventListener('change', renderCategoryTrend);
 
 /* ======================= FORM HANDLERS: RECORRÊNCIAS ======================= */
 document.getElementById('r-kind').addEventListener('change', updateRecQuemOptions);
