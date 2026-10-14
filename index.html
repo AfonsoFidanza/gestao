@@ -294,6 +294,15 @@
   .barlist .brow .fill{ height:100%; border-radius:5px; }
   .barlist .brow .amt{ font-family:var(--font-mono); font-size:12px; width:90px; text-align:right; flex-shrink:0; }
 
+  .fe-input::-webkit-inner-spin-button,.fe-input::-webkit-outer-spin-button,.fe-input-new::-webkit-inner-spin-button,.fe-input-new::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+  .fe-input,.fe-input-new{ -moz-appearance:textfield; appearance:textfield; }
+  .barlist .brow .amt.fe-amt{ display:flex; align-items:center; gap:4px; justify-content:flex-end; width:auto; white-space:nowrap; }
+  .fe-amt .fe-input{ width:80px; padding:4px 6px; text-align:right; font-family:var(--font-mono); font-size:12px; outline:none; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); box-sizing:border-box; }
+  .fe-amt .fe-input[data-edited]{ background:var(--surface-2); }
+  .fe-amt .fe-input:focus{ border-color:var(--savings); }
+  .fe-input-new{ border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); padding:6px 8px; }
+  .fe-amt button{ border:none; background:none; cursor:pointer; color:var(--text-muted); padding:0; width:18px; }
+  .fe-slot{ display:inline-block; width:18px; }
   .gauge-track{ height:14px; border-radius:8px; background:var(--surface-2); position:relative; overflow:hidden; margin:14px 0 8px 0; }
   .gauge-fill{ height:100%; border-radius:8px; transition:width 0.4s ease; }
   .gauge-marks{ display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:10px; color:var(--text-dim); }
@@ -1201,7 +1210,6 @@
 
       <div class="card">
         <div class="card-title">Fundo de emergência do casal · 12 e 18 meses</div>
-        <p class="helptext" style="margin-top:-6px;">Quanto precisam poupado para aguentar as despesas essenciais do casal, sem qualquer rendimento, durante 12 ou 18 meses.</p>
         <div id="proj-emergency-fund"></div>
       </div>
 
@@ -1430,6 +1438,10 @@
             <label>Custo total (€)</label>
             <input type="number" id="solar-custo" min="0" step="1">
           </div>
+          <div class="field" style="max-width:220px;">
+            <label>Data da instalação</label>
+            <input type="date" id="solar-data-install">
+          </div>
           <div class="field" style="flex:0;">
             <button type="button" class="btn secondary" id="solar-custo-save">Guardar</button>
           </div>
@@ -1437,28 +1449,18 @@
       </div>
 
       <div class="card">
-        <div class="card-title">Novo registo mensal</div>
+        <div class="card-title">Novo registo (período da fatura)</div>
         <form id="form-solar">
           <div class="form-row">
-            <div class="field" style="position:relative;">
-              <label>Mês</label>
-              <button type="button" id="solar-mes-btn" class="month-picker-btn">Escolher mês</button>
-              <input type="hidden" id="solar-mes" required>
-              <div class="month-picker-panel" id="solar-mes-panel" style="display:none;">
-                <div class="mp-header">
-                  <button type="button" id="solar-mes-prev">‹</button>
-                  <span id="solar-mes-year-label"></span>
-                  <button type="button" id="solar-mes-next">›</button>
-                </div>
-                <div class="mp-grid" id="solar-mes-grid"></div>
-              </div>
-            </div>
+            <div class="field"><label>Início do período da fatura</label><input type="date" id="solar-inicio" required></div>
+            <div class="field"><label>Fim do período da fatura</label><input type="date" id="solar-fim" required><div class="field-hint" id="solar-dias-hint"></div></div>
             <div class="field"><label>kWh produzidos</label><input type="number" id="solar-kwh-produzidos" min="0" step="0.1" required></div>
+            <div class="field"><label>kWh consumidos da produção (opcional)</label><input type="number" id="solar-kwh-autoconsumo" min="0" step="0.1" placeholder="em branco = produzidos − vendidos"></div>
             <div class="field"><label>kWh vendidos à rede</label><input type="number" id="solar-kwh-vendidos" min="0" step="0.1" required></div>
           </div>
           <div class="form-row">
-            <div class="field"><label>Preço de venda (€/kWh)</label><input type="number" id="solar-preco-venda" min="0" step="0.001" required></div>
-            <div class="field"><label>Preço de compra à rede (€/kWh)</label><input type="number" id="solar-preco-compra" min="0" step="0.001" required></div>
+            <div class="field"><label>Preço de venda (€/kWh)</label><input type="number" id="solar-preco-venda" min="0" step="0.0001" required></div>
+            <div class="field"><label>Preço de compra à rede (€/kWh)</label><input type="number" id="solar-preco-compra" min="0" step="0.0001" required></div>
           </div>
           <div class="form-row">
             <div class="field"><label>kWh comprados à rede (da fatura)</label><input type="number" id="solar-kwh-comprados" min="0" step="0.1" required></div>
@@ -1476,6 +1478,11 @@
       <div class="card">
         <div class="card-title">Retorno do investimento</div>
         <div id="solar-roi"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Percentagens de energia</div>
+        <div id="solar-pct"></div>
       </div>
 
       <div class="card">
@@ -1704,9 +1711,34 @@ const STORAGE_KEY = 'livroRazao_financas_v3';
 
 const OWNERS = ['afonso','leonor'];
 let OWNER_LABEL = { afonso:'Afonso', leonor:'Leonor' };
+function solarAdjust(r){
+  const di = state.solar.dataInstalacao;
+  if(!di) return { r, status:'ok' };
+  const ini = r.inicio || (r.mes+'-01');
+  let fim = r.fim;
+  if(!fim){ const [y,m] = r.mes.split('-').map(Number); fim = r.mes+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0'); }
+  if(fim < di) return { r, status:'fora' };
+  if(ini >= di) return { r, status:'ok' };
+  const total = solarDiasEntre(ini, fim), keep = solarDiasEntre(di, fim);
+  if(!total || !keep) return { r, status:'ok' };
+  const f = keep/total;
+  const sc = v => (v != null && v !== '') ? Number(v)*f : v;
+  return { r: Object.assign({}, r, { inicio: di, fim, dias: keep, kwhComprados: sc(r.kwhComprados), kwhUsados: sc(r.kwhUsados) }), status:'parcial' };
+}
+function solarEfetivos(){
+  return state.solar.registos.map(solarAdjust).filter(x=>x.status !== 'fora').map(x=>x.r);
+}
+function solarSortKey(r){ return r.fim || (r.mes+'-31'); }
+function solarPeriodLabel(r){
+  if(!r.inicio || !r.fim) return monthLabel(r.mes);
+  const f = d => d.slice(8,10)+'/'+d.slice(5,7)+'/'+d.slice(2,4);
+  return f(r.inicio)+' – '+f(r.fim);
+}
 function computeSolarRecordDerived(r){
-  const autoconsumo = Math.max(0, r.kwhProduzidos - r.kwhVendidos);
+  const autoconsumoInformado = (r.kwhAutoconsumo != null && r.kwhAutoconsumo !== '') ? Number(r.kwhAutoconsumo) : null;
+  const autoconsumo = autoconsumoInformado != null ? autoconsumoInformado : Math.max(0, r.kwhProduzidos - r.kwhVendidos);
   const pctAutoconsumo = r.kwhProduzidos > 0 ? (autoconsumo/r.kwhProduzidos)*100 : 0;
+  const pctVendida = r.kwhProduzidos > 0 ? (r.kwhVendidos/r.kwhProduzidos)*100 : 0;
   const receitaVenda = r.kwhVendidos * r.precoVenda;
   const poupancaAutoconsumo = autoconsumo * r.precoCompra;
   const poupancaTotal = receitaVenda + poupancaAutoconsumo;
@@ -1714,14 +1746,16 @@ function computeSolarRecordDerived(r){
   const consumoEstimado = autoconsumo + kwhComprados;
   const kwhUsadosReal = (r.kwhUsados != null && r.kwhUsados !== '') ? Number(r.kwhUsados) : null;
   const consumoTotalCasa = kwhUsadosReal != null ? kwhUsadosReal : consumoEstimado;
+  const pctCobertura = consumoTotalCasa > 0 ? Math.min(100, (autoconsumo/consumoTotalCasa)*100) : 0;
+  const pctRede = consumoTotalCasa > 0 ? Math.min(100, (kwhComprados/consumoTotalCasa)*100) : 0;
   const custoComPaineis = kwhComprados * r.precoCompra;
   const custoSemPaineis = consumoTotalCasa * r.precoCompra;
-  return { autoconsumo, pctAutoconsumo, receitaVenda, poupancaAutoconsumo, poupancaTotal, kwhComprados, consumoEstimado, kwhUsadosReal, consumoTotalCasa, custoComPaineis, custoSemPaineis };
+  return { autoconsumo, autoconsumoInformado, pctAutoconsumo, pctVendida, receitaVenda, poupancaAutoconsumo, poupancaTotal, kwhComprados, consumoEstimado, kwhUsadosReal, consumoTotalCasa, custoComPaineis, custoSemPaineis, pctCobertura, pctRede };
 }
 function renderSolarROI(){
   const container = document.getElementById('solar-roi');
   const custo = Number(state.solar.custoInstalacao)||0;
-  const registos = state.solar.registos;
+  const registos = solarEfetivos();
   if(custo <= 0){
     container.innerHTML = '<div class="empty">Define o custo da instalação acima para veres o retorno do investimento.</div>';
     return;
@@ -1754,9 +1788,39 @@ function renderSolarROI(){
     <p class="helptext" style="margin-top:8px;">${pctRecuperado.toFixed(1)}% do investimento recuperado. ${paybackText}.</p>
   `;
 }
+function renderSolarPct(){
+  const container = document.getElementById('solar-pct');
+  const registos = solarEfetivos();
+  if(registos.length === 0){ container.innerHTML = '<div class="empty">Adiciona registos mensais para veres as percentagens.</div>'; return; }
+  let prod=0, vend=0, auto=0, comp=0, total=0, diasTot=0, prodComDias=0;
+  registos.forEach(r=>{
+    const d = computeSolarRecordDerived(r);
+    if(r.dias){ diasTot += r.dias; prodComDias += r.kwhProduzidos; }
+    prod += r.kwhProduzidos; vend += r.kwhVendidos; auto += d.autoconsumo; comp += d.kwhComprados; total += d.consumoTotalCasa;
+  });
+  const p = (a,b)=> b>0 ? Math.min(100,(a/b)*100) : 0;
+  const bar = (pct,color)=> `<div class="gauge-track" style="margin:6px 0 2px 0;"><div class="gauge-fill" style="width:${pct}%; background:${color};"></div></div>`;
+  const pAuto = p(auto,prod), pVend = p(vend,prod), pCob = p(auto,total), pRede = p(comp,total);
+  container.innerHTML = `
+    ${diasTot>0 ? `<p class="helptext" style="margin-top:0;">${diasTot} dias com período registado · média de <strong style="color:var(--text)">${(prodComDias/diasTot).toFixed(1)} kWh/dia</strong> produzidos.</p>` : ''}
+    <div class="grid grid-2">
+      <div>
+        <div class="micro">Do que produzes</div>
+        <div style="display:flex; justify-content:space-between;"><span>Consumido em casa</span><strong>${pAuto.toFixed(1)}%</strong></div>${bar(pAuto,'var(--savings)')}
+        <div style="display:flex; justify-content:space-between; margin-top:8px;"><span>Vendido à rede</span><strong>${pVend.toFixed(1)}%</strong></div>${bar(pVend,'var(--income)')}
+        <div class="micro" style="margin-top:6px;">${auto.toFixed(0)} kWh consumidos · ${vend.toFixed(0)} kWh vendidos · ${prod.toFixed(0)} kWh produzidos</div>
+      </div>
+      <div>
+        <div class="micro">Do que a casa consome</div>
+        <div style="display:flex; justify-content:space-between;"><span>Vem dos painéis</span><strong>${pCob.toFixed(1)}%</strong></div>${bar(pCob,'var(--savings)')}
+        <div style="display:flex; justify-content:space-between; margin-top:8px;"><span>Vem da rede</span><strong>${pRede.toFixed(1)}%</strong></div>${bar(pRede,'var(--income)')}
+        <div class="micro" style="margin-top:6px;">${auto.toFixed(0)} kWh dos painéis · ${comp.toFixed(0)} kWh da rede · ${total.toFixed(0)} kWh de consumo total</div>
+      </div>
+    </div>`;
+}
 function renderSolarChart(){
   const container = document.getElementById('solar-chart');
-  const registos = state.solar.registos.slice().sort((a,b)=>a.mes.localeCompare(b.mes));
+  const registos = solarEfetivos().sort((a,b)=>solarSortKey(a).localeCompare(solarSortKey(b)));
   if(registos.length === 0){
     container.innerHTML = '<div class="empty">Ainda não há registos.</div>';
     return;
@@ -1764,7 +1828,7 @@ function renderSolarChart(){
   let cumulative = 0;
   const points = registos.map(r=>{
     cumulative += computeSolarRecordDerived(r).poupancaTotal;
-    return { date: r.mes+'-01', value: cumulative };
+    return { date: r.fim || (r.mes+'-01'), value: cumulative };
   });
   const custo = Number(state.solar.custoInstalacao)||0;
   const chart = buildDateAlignedLineChart([{ color:'var(--income)', key:'Poupança acumulada', points }], { height: 240 });
@@ -1772,19 +1836,23 @@ function renderSolarChart(){
 }
 function renderSolarHistorico(){
   const container = document.getElementById('solar-historico');
-  const registos = state.solar.registos.slice().sort((a,b)=>b.mes.localeCompare(a.mes));
+  const registos = state.solar.registos.slice().sort((a,b)=>solarSortKey(b).localeCompare(solarSortKey(a)));
   if(registos.length === 0){
     container.innerHTML = '<div class="empty">Ainda não adicionaste nenhum registo.</div>';
     return;
   }
-  let html = `<table><thead><tr><th>Mês</th><th style="text-align:right;">Produzidos</th><th style="text-align:right;">Vendidos</th><th style="text-align:right;">Autoconsumo</th><th style="text-align:right;">Comprados (fatura)</th><th style="text-align:right;">kWh usados (total)</th><th style="text-align:right;">Receita venda</th><th style="text-align:right;">Poupança autoconsumo</th><th style="text-align:right;">Total poupado</th><th></th></tr></thead><tbody>`;
-  registos.forEach(r=>{
+  let html = `<table><thead><tr><th>Período</th><th style="text-align:right;">Produzidos</th><th style="text-align:right;">kWh/dia</th><th style="text-align:right;">Vendidos</th><th style="text-align:right;">Consumo da produção</th><th style="text-align:right;">% vendida</th><th style="text-align:right;">% casa coberta</th><th style="text-align:right;">Comprados (fatura)</th><th style="text-align:right;">kWh usados (total)</th><th style="text-align:right;">Receita venda</th><th style="text-align:right;">Poupança autoconsumo</th><th style="text-align:right;">Total poupado</th><th></th></tr></thead><tbody>`;
+  registos.forEach(r0=>{
+    const adj = solarAdjust(r0); const r = adj.r;
     const d = computeSolarRecordDerived(r);
-    html += `<tr>
-      <td>${monthLabel(r.mes)}</td>
+    html += `<tr${adj.status==='fora' ? ' style="opacity:.5;"' : ''}>
+      <td>${solarPeriodLabel(r)}${adj.status==='fora' ? ' <span class="micro">(antes da instalação — não conta)</span>' : adj.status==='parcial' ? ' <span class="micro">(desde a instalação — só os kWh da rede divididos por dias)</span>' : ''}${r.dias ? ' <span class="micro">('+r.dias+' dias)</span>' : ''}</td>
       <td class="num">${r.kwhProduzidos.toFixed(1)} kWh</td>
+      <td class="num">${r.dias ? (r.kwhProduzidos/r.dias).toFixed(1) : '—'}</td>
       <td class="num">${r.kwhVendidos.toFixed(1)} kWh</td>
-      <td class="num">${d.autoconsumo.toFixed(1)} kWh (${d.pctAutoconsumo.toFixed(0)}%)</td>
+      <td class="num">${d.autoconsumo.toFixed(1)} kWh (${d.pctAutoconsumo.toFixed(0)}%)${d.autoconsumoInformado!=null ? ' <span class="micro">(informado)</span>' : ''}</td>
+      <td class="num">${d.pctVendida.toFixed(0)}%</td>
+      <td class="num">${d.pctCobertura.toFixed(0)}%</td>
       <td class="num">${d.kwhComprados.toFixed(1)} kWh</td>
       <td class="num">${d.consumoTotalCasa.toFixed(1)} kWh${d.kwhUsadosReal!=null ? ' <span class="micro">(informado)</span>' : ' <span class="micro">(estimado)</span>'}</td>
       <td class="num">${fmtMoney(d.receitaVenda)}</td>
@@ -1809,7 +1877,9 @@ function renderSolarHistorico(){
 }
 function renderSolarAll(){
   document.getElementById('solar-custo').value = state.solar.custoInstalacao || '';
+  document.getElementById('solar-data-install').value = state.solar.dataInstalacao || '';
   renderSolarROI();
+  renderSolarPct();
   renderSolarChart();
   renderSolarHistorico();
 }
@@ -1818,10 +1888,12 @@ function startEditSolar(id){
   const r = state.solar.registos.find(x=>x.id===id);
   if(!r) return;
   editingSolarId = id;
-  document.getElementById('solar-mes').value = r.mes;
-  document.getElementById('solar-mes-btn').textContent = monthLabel(r.mes);
+  document.getElementById('solar-inicio').value = r.inicio || (r.mes+'-01');
+  document.getElementById('solar-fim').value = r.fim || '';
+  updateSolarDiasHint();
   document.getElementById('solar-kwh-produzidos').value = r.kwhProduzidos;
   document.getElementById('solar-kwh-vendidos').value = r.kwhVendidos;
+  document.getElementById('solar-kwh-autoconsumo').value = r.kwhAutoconsumo != null ? r.kwhAutoconsumo : '';
   document.getElementById('solar-preco-venda').value = r.precoVenda;
   document.getElementById('solar-preco-compra').value = r.precoCompra;
   document.getElementById('solar-kwh-comprados').value = r.kwhComprados;
@@ -1835,7 +1907,7 @@ function cancelEditSolar(){
   document.getElementById('solar-form-submit').textContent = 'Adicionar registo';
   document.getElementById('solar-form-cancel').style.display = 'none';
   document.getElementById('form-solar').reset();
-  document.getElementById('solar-mes-btn').textContent = 'Escolher mês';
+  document.getElementById('solar-dias-hint').textContent = '';
 }
 function renderIrsJovemStatus(){
   const container = document.getElementById('irs-jovem-status');
@@ -2033,7 +2105,7 @@ function defaultState(){
     savingsCongrats: { afonso:{}, leonor:{} },
     salaryChoice: { afonso:{}, leonor:{} },
     gainLossHistory: [],
-    solar: { custoInstalacao: 0, registos: [] },
+    solar: { custoInstalacao: 0, dataInstalacao: '', registos: [] },
     cgd: {
       items: [
         { id: 'cgd-renda', name: 'Renda / Prestação', amount: 1132.67 },
@@ -2049,7 +2121,7 @@ function defaultState(){
       previousSnapshot: null
     },
     mortgage: { principalInicial: 0, dataInicio: '', rate: 0, installment: 0, baseAfonso: 0, baseLeonor: 0, pctPoupanca: 70, pctProdutos: 10, pctAmortizacao: 20, pctAnnualBonus: 0, idadeAfonso: 0, idadeLeonor: 0, startMonth: '2027-01', payer: 'afonso', houseValue: 0 },
-    settings: { personalBudget: { afonso:0, leonor:0 }, ownerNames: { afonso:'', leonor:'' }, projectionFolgaPct: 10, returnRates: { poupanca:1, investimento:5 }, irsJovemStartYear: { afonso: null, leonor: null }, desiredMonthlySavings: { afonso: null, leonor: null }, lastIncomeConfirmedDate: { afonso: {}, leonor: {} }, blurValues: false }
+    settings: { personalBudget: { afonso:0, leonor:0 }, ownerNames: { afonso:'', leonor:'' }, projectionFolgaPct: 10, returnRates: { poupanca:1, investimento:5 }, irsJovemStartYear: { afonso: null, leonor: null }, desiredMonthlySavings: { afonso: null, leonor: null }, lastIncomeConfirmedDate: { afonso: {}, leonor: {} }, blurValues: false, fundoOverrides: {}, fundoHidden: [], fundoCustom: [] }
   };
 }
 
@@ -2060,6 +2132,9 @@ function loadFromParsed(parsed){
   merged.settings.personalBudget = Object.assign({afonso:0,leonor:0}, (parsed.settings||{}).personalBudget||{});
   merged.settings.ownerNames = Object.assign({afonso:'',leonor:''}, (parsed.settings||{}).ownerNames||{});
   merged.settings.projectionFolgaPct = (parsed.settings && parsed.settings.projectionFolgaPct != null) ? parsed.settings.projectionFolgaPct : 10;
+  merged.settings.fundoOverrides = Object.assign({}, (parsed.settings||{}).fundoOverrides||{});
+  merged.settings.fundoHidden = Array.isArray((parsed.settings||{}).fundoHidden) ? parsed.settings.fundoHidden.slice() : [];
+  merged.settings.fundoCustom = Array.isArray((parsed.settings||{}).fundoCustom) ? parsed.settings.fundoCustom.slice() : [];
   merged.settings.returnRates = Object.assign({poupanca:1, investimento:5}, (parsed.settings||{}).returnRates||{});
   merged.settings.irsJovemStartYear = Object.assign({afonso:null, leonor:null}, (parsed.settings||{}).irsJovemStartYear||{});
   merged.settings.desiredMonthlySavings = Object.assign({afonso:null, leonor:null}, (parsed.settings||{}).desiredMonthlySavings||{});
@@ -2097,7 +2172,7 @@ function loadFromParsed(parsed){
     merged.settings.acertoFeriasBudgetFixed = true;
   }
   merged.gainLossHistory = Array.isArray(parsed.gainLossHistory) ? parsed.gainLossHistory : [];
-  merged.solar = Object.assign({ custoInstalacao: 0, registos: [] }, parsed.solar||{});
+  merged.solar = Object.assign({ custoInstalacao: 0, dataInstalacao: '', registos: [] }, parsed.solar||{});
   merged.solar.registos = Array.isArray(merged.solar.registos) ? merged.solar.registos : [];
   const defaultCgd = defaultState().cgd;
   merged.cgd = Object.assign({}, defaultCgd, parsed.cgd||{});
@@ -3902,11 +3977,47 @@ function renderFundoEmergenciaLista(){
   let html = '<div class="barlist">';
   rows.forEach(r=>{
     const pct = Math.max(3, (r.avg/max)*100);
-    html += `<div class="brow"><span class="name">${escapeHtml(r.cat)}</span><div class="track"><div class="fill" style="width:${pct}%; background:var(--savings);"></div></div><span class="amt">${fmtMoney(r.avg)}/mês</span></div>`;
+    html += `<div class="brow"><span class="name">${escapeHtml(r.cat)}</span><div class="track"><div class="fill" style="width:${pct}%; background:var(--savings);"></div></div><span class="amt fe-amt"><input type="number" step="0.01" min="0" inputmode="decimal" class="fe-input" data-fe-key="${escapeHtml(r.key)}" value="${r.avg.toFixed(2)}" ${r.edited?'data-edited="1"':''}>€/mês<button type="button" class="fe-del" data-fe-key="${escapeHtml(r.key)}" title="Remover">✕</button><span class="fe-slot">${r.edited?`<button type="button" class="fe-reset" data-fe-key="${escapeHtml(r.key)}" title="Repor valor calculado (${fmtMoney(r.calc)})">↺</button>`:''}</span></span></div>`;
   });
   html += '</div>';
-  html += `<p class="helptext" style="margin-top:12px;">Média mensal por categoria, com base nos últimos ${monthsUsed} mes(es) em que existem dados (cada categoria conta só pelos meses em que teve despesas, não pelo total da janela) — a mesma base usada para calcular o fundo de emergência.</p>`;
+  const nHidden = (state.settings.fundoHidden||[]).length;
+  html += `<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px;"><input type="text" id="fe-new-name" placeholder="Nova categoria" style="flex:1; min-width:120px;"><input type="number" id="fe-new-amt" step="0.01" min="0" inputmode="decimal" placeholder="€/mês" class="fe-input-new" style="width:90px; text-align:right;"><button type="button" class="fe-add btn">Adicionar</button>${nHidden?`<button type="button" class="fe-restore btn" style="opacity:.7;">Repor removidas (${nHidden})</button>`:''}</div>`;
+  html += `<p class="helptext" style="margin-top:12px;">Podes editar cada valor (o fundo de emergência atualiza logo; ↺ repõe o calculado). Média mensal por categoria, com base nos últimos ${monthsUsed} mes(es) em que existem dados (cada categoria conta só pelos meses em que teve despesas, não pelo total da janela) — a mesma base usada para calcular o fundo de emergência.</p>`;
   container.innerHTML = html;
+  if(!container.dataset.feBound){
+    container.dataset.feBound = '1';
+    container.addEventListener('change', ev=>{
+      const inp = ev.target.closest('.fe-input'); if(!inp) return;
+      const v = parseFloat(String(inp.value).replace(',','.'));
+      if(!state.settings.fundoOverrides) state.settings.fundoOverrides = {};
+      const cu = (state.settings.fundoCustom||[]).find(c => c.id === inp.dataset.feKey);
+      if(cu){ cu.amount = (isNaN(v)||v<0) ? 0 : v; }
+      else if(isNaN(v) || v < 0) delete state.settings.fundoOverrides[inp.dataset.feKey];
+      else state.settings.fundoOverrides[inp.dataset.feKey] = v;
+      saveState(); renderAll();
+    });
+    container.addEventListener('click', ev=>{
+      const d = ev.target.closest('.fe-del');
+      if(d){
+        const k = d.dataset.feKey;
+        if(k.startsWith('custom-')) state.settings.fundoCustom = state.settings.fundoCustom.filter(c => c.id !== k);
+        else { state.settings.fundoHidden = state.settings.fundoHidden||[]; if(!state.settings.fundoHidden.includes(k)) state.settings.fundoHidden.push(k); }
+        saveState(); renderAll(); return;
+      }
+      if(ev.target.closest('.fe-restore')){ state.settings.fundoHidden = []; saveState(); renderAll(); return; }
+      if(ev.target.closest('.fe-add')){
+        const n = document.getElementById('fe-new-name').value.trim();
+        const v = parseFloat(String(document.getElementById('fe-new-amt').value).replace(',','.'));
+        if(!n || isNaN(v) || v < 0) return;
+        state.settings.fundoCustom = state.settings.fundoCustom||[];
+        state.settings.fundoCustom.push({ id: 'custom-'+Date.now(), name: n, amount: v });
+        saveState(); renderAll(); return;
+      }
+      const b = ev.target.closest('.fe-reset'); if(!b) return;
+      delete state.settings.fundoOverrides[b.dataset.feKey];
+      saveState(); renderAll();
+    });
+  }
 }
 let expandedTxMonths = null;
 function computeCategoryMonthlyTotals(category, year){
@@ -4733,9 +4844,17 @@ function computeFundoEmergenciaCategoryAverages(){
   // Cada categoria é dividida só pelos meses em que teve dados — senão uma despesa que só
   // começou a meio da janela aparece artificialmente reduzida (o mesmo problema de "arranque
   // a frio" que já corrigimos nas Projeções).
-  const rows = Object.entries(categoryTotals).map(([cat, total]) => ({ cat, avg: total/(categoryMonthCounts[cat]||1) }));
-  rows.push({ cat: 'Supermercado (estimativa manual, não é um lançamento real)', avg: FUNDO_EMERGENCIA_SUPERMERCADO_HIPOTETICO });
-  return { rows, monthsUsed: keys.length };
+  const ov = (state.settings && state.settings.fundoOverrides) || {};
+  const rows = Object.entries(categoryTotals).map(([cat, total]) => {
+    const calc = total/(categoryMonthCounts[cat]||1);
+    const has = ov[cat] != null;
+    return { key: cat, cat, avg: has ? Number(ov[cat]) : calc, calc, edited: has };
+  });
+  const supHas = ov['Supermercado'] != null;
+  rows.push({ key: 'Supermercado', cat: 'Supermercado (estimativa manual, não é um lançamento real)', avg: supHas ? Number(ov['Supermercado']) : FUNDO_EMERGENCIA_SUPERMERCADO_HIPOTETICO, calc: FUNDO_EMERGENCIA_SUPERMERCADO_HIPOTETICO, edited: supHas });
+  (state.settings.fundoCustom||[]).forEach(c => rows.push({ key: c.id, cat: c.name, avg: Number(c.amount)||0, calc: Number(c.amount)||0, edited: false, custom: true }));
+  const hidden = state.settings.fundoHidden || [];
+  return { rows: rows.filter(r => !hidden.includes(r.key)), monthsUsed: keys.length };
 }
 function computeHouseholdEmergencyFund(){
   const { rows, monthsUsed } = computeFundoEmergenciaCategoryAverages();
@@ -4763,19 +4882,45 @@ function renderProjEmergencyFund(){
     fAlt = computeHouseholdEmergencyFund();
     rendaTpl.amount = originalAmount;
   }
-  const pct12 = f.target12 > 0 ? Math.min(100, (f.totalSavings/f.target12)*100) : 0;
-  const pct18 = f.target18 > 0 ? Math.min(100, (f.totalSavings/f.target18)*100) : 0;
+  const monthsCovered = f.avgEssential > 0 ? f.totalSavings / f.avgEssential : 0;
+  const missing12 = Math.max(0, f.target12 - f.totalSavings);
+  const missing18 = Math.max(0, f.target18 - f.totalSavings);
+  const monthsAlt = (fAlt && fAlt.avgEssential > 0) ? f.totalSavings / fAlt.avgEssential : null;
+  const barMax = Math.max(18, monthsCovered, monthsAlt||0);
+  const fillPct = Math.min(100, (monthsCovered/barMax)*100);
+  const m12Pct = (12/barMax)*100;
+  const done12 = monthsCovered >= 12;
+  const fmtM = n => n.toFixed(1).replace('.', ',');
   container.innerHTML = `
-    <p style="margin-top:0; color:var(--text-muted); font-size:13px;">Baseado na média de despesas do fundo de emergência do casal dos últimos ${f.monthsUsed} mes(es): <strong style="color:var(--text)">${fmtMoney(f.avgEssential)}</strong>/mês.</p>
-    <div class="grid grid-3">
-      <div class="stat"><div class="lbl">Poupado + investido (casal)</div><div class="val">${fmtMoney(f.totalSavings)}</div></div>
-      <div class="stat"><div class="lbl">Necessário p/ 12 meses</div><div class="val gold">${fmtMoney(f.target12)}</div></div>
-      <div class="stat"><div class="lbl">Necessário p/ 18 meses</div><div class="val gold">${fmtMoney(f.target18)}</div></div>
+    <p style="margin-top:0; color:var(--text-muted); font-size:13px;">Média de despesas do fundo de emergência do casal (últimos ${f.monthsUsed} mes(es)): <strong style="color:var(--text)">${fmtMoney(f.avgEssential)}</strong>/mês.</p>
+    <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap;">
+      <div><span style="font-size:26px; font-weight:700;">${fmtM(monthsCovered)}</span> <span style="color:var(--text-muted); font-size:13px;">meses cobertos</span></div>
+      <div style="font-size:13px; color:var(--text-muted);">Meta: <strong style="color:var(--text)">12 meses</strong></div>
     </div>
-    <div class="micro" style="margin-top:14px;">12 meses</div>
-    <div class="gauge-track"><div class="gauge-fill" style="width:${pct12}%; background:${pct12>=100?'var(--income)':'var(--savings)'};"></div></div>
-    <div class="micro">18 meses</div>
-    <div class="gauge-track"><div class="gauge-fill" style="width:${pct18}%; background:${pct18>=100?'var(--income)':'var(--savings)'};"></div></div>
+    <div class="gauge-track" style="height:18px; margin:10px 0 4px 0;">
+      <div class="gauge-fill" style="width:${fillPct}%; background:${done12?'var(--income)':'var(--savings)'};"></div>
+      <div style="position:absolute; top:0; bottom:0; left:${m12Pct}%; width:2px; background:var(--text);"></div>
+    </div>
+    ${monthsAlt!==null ? `
+    <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-top:10px; font-size:13px;">
+      <div><strong>${fmtM(monthsAlt)}</strong> <span style="color:var(--text-muted);">meses com Renda a 732,67 €</span></div>
+      <div style="color:var(--text-muted);">${monthsAlt>=12?'Meta atingida':'Falta '+fmtMoney(Math.max(0,fAlt.target12 - f.totalSavings))}</div>
+    </div>
+    <div class="gauge-track" style="height:18px; margin:6px 0 4px 0;">
+      <div class="gauge-fill" style="width:${Math.min(100,(monthsAlt/barMax)*100)}%; background:${monthsAlt>=12?'var(--income)':'var(--savings)'}; opacity:0.45;"></div>
+      <div style="position:absolute; top:0; bottom:0; left:${m12Pct}%; width:2px; background:var(--text);"></div>
+    </div>` : ''}
+    <div style="position:relative; height:16px; font-size:11px; color:var(--text-muted);">
+      <span style="position:absolute; left:0;">0</span>
+      <span style="position:absolute; left:${m12Pct}%; transform:translateX(-50%);">12m</span>
+      ${barMax>12 ? '<span style="position:absolute; right:0;">'+(barMax>18?fmtM(barMax):'18')+'m</span>' : ''}
+    </div>
+    <div class="grid grid-3" style="margin-top:12px;">
+      <div class="stat"><div class="lbl">Poupado + investido</div><div class="val">${fmtMoney(f.totalSavings)}</div></div>
+      <div class="stat"><div class="lbl">Meta (12 meses)</div><div class="val gold">${fmtMoney(f.target12)}</div></div>
+      <div class="stat"><div class="lbl">${done12?'Meta atingida':'Falta p/ a meta'}</div><div class="val ${done12?'':'gold'}">${done12?'✓':fmtMoney(missing12)}</div></div>
+    </div>
+    <div class="micro" style="margin-top:10px;">${missing18>0 ? 'Para 18 meses ('+fmtMoney(f.target18)+') faltam '+fmtMoney(missing18)+'.' : '18 meses também atingidos.'}</div>
     ${fAlt ? `
     <hr style="border:none; border-top:1px solid var(--border); margin:16px 0;">
     <p style="margin:0 0 10px 0; color:var(--text-muted); font-size:13px;">Simulação — se a Renda fosse <strong style="color:var(--text)">732,67€</strong> em vez do valor atual da recorrência (${fmtMoney(rendaTpl.amount)}):</p>
@@ -6153,82 +6298,64 @@ function renderGainLossChart(){
 document.getElementById('calc-ganhos-chart-mode').addEventListener('change', renderGainLossChart);
 
 /* ======================= FORM HANDLERS: PAINÉIS SOLARES ======================= */
-let solarMesPickerYear = new Date().getFullYear();
-function renderSolarMesPickerGrid(){
-  document.getElementById('solar-mes-year-label').textContent = solarMesPickerYear;
-  const grid = document.getElementById('solar-mes-grid');
-  grid.innerHTML = '';
-  monthNamesShort.forEach((label, idx)=>{
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = label;
-    btn.className = 'mp-month-btn';
-    const mk = `${solarMesPickerYear}-${String(idx+1).padStart(2,'0')}`;
-    if(document.getElementById('solar-mes').value === mk) btn.classList.add('selected');
-    btn.addEventListener('click', ()=>{
-      document.getElementById('solar-mes').value = mk;
-      document.getElementById('solar-mes-btn').textContent = monthLabel(mk);
-      document.getElementById('solar-mes-panel').style.display = 'none';
-    });
-    grid.appendChild(btn);
-  });
+function solarDiasEntre(ini, fim){
+  if(!ini || !fim) return null;
+  const d = Math.round((new Date(fim+'T00:00:00') - new Date(ini+'T00:00:00'))/86400000) + 1;
+  return d > 0 ? d : null;
 }
-document.getElementById('solar-mes-btn').addEventListener('click', (ev)=>{
-  ev.stopPropagation();
-  const panel = document.getElementById('solar-mes-panel');
-  const willShow = panel.style.display === 'none';
-  if(willShow){
-    const current = document.getElementById('solar-mes').value;
-    if(current) solarMesPickerYear = parseInt(current.split('-')[0], 10);
-    renderSolarMesPickerGrid();
-  }
-  panel.style.display = willShow ? 'block' : 'none';
-});
-document.getElementById('solar-mes-prev').addEventListener('click', (ev)=>{ ev.stopPropagation(); solarMesPickerYear--; renderSolarMesPickerGrid(); });
-document.getElementById('solar-mes-next').addEventListener('click', (ev)=>{ ev.stopPropagation(); solarMesPickerYear++; renderSolarMesPickerGrid(); });
-document.addEventListener('click', (ev)=>{
-  const panel = document.getElementById('solar-mes-panel');
-  const btn = document.getElementById('solar-mes-btn');
-  if(panel && panel.style.display !== 'none' && !panel.contains(ev.target) && ev.target !== btn){
-    panel.style.display = 'none';
-  }
-});
+function updateSolarDiasHint(){
+  const d = solarDiasEntre(document.getElementById('solar-inicio').value, document.getElementById('solar-fim').value);
+  document.getElementById('solar-dias-hint').textContent = d ? d+' dias de produção' : '';
+}
+['solar-inicio','solar-fim'].forEach(id => document.getElementById(id).addEventListener('change', updateSolarDiasHint));
 document.getElementById('solar-custo-save').addEventListener('click', ()=>{
   state.solar.custoInstalacao = Math.max(0, parseFloat(document.getElementById('solar-custo').value) || 0);
+  state.solar.dataInstalacao = document.getElementById('solar-data-install').value || '';
   saveState();
   renderSolarAll();
-  showToast('Custo da instalação guardado.');
+  showToast('Instalação guardada.');
 });
 document.getElementById('solar-form-cancel').addEventListener('click', cancelEditSolar);
 document.getElementById('form-solar').addEventListener('submit', (ev)=>{
   ev.preventDefault();
-  const mes = document.getElementById('solar-mes').value;
+  const inicio = document.getElementById('solar-inicio').value;
+  const fim = document.getElementById('solar-fim').value;
+  const mes = fim ? fim.slice(0,7) : '';
+  const dias = solarDiasEntre(inicio, fim);
   const kwhProduzidos = parseFloat(document.getElementById('solar-kwh-produzidos').value);
   const kwhVendidos = parseFloat(document.getElementById('solar-kwh-vendidos').value);
   const precoVenda = parseFloat(document.getElementById('solar-preco-venda').value);
   const precoCompra = parseFloat(document.getElementById('solar-preco-compra').value);
   const kwhComprados = parseFloat(document.getElementById('solar-kwh-comprados').value);
+  const autoRaw = document.getElementById('solar-kwh-autoconsumo').value;
+  const kwhAutoconsumo = autoRaw === '' ? null : parseFloat(autoRaw);
   const kwhUsadosRaw = document.getElementById('solar-kwh-usados').value;
   const kwhUsados = kwhUsadosRaw === '' ? null : parseFloat(kwhUsadosRaw);
+  if(!inicio || !fim || !dias){
+    showToast('Escolhe o início e o fim do período (o fim não pode ser antes do início).'); return;
+  }
   if(!mes || isNaN(kwhProduzidos) || isNaN(kwhVendidos) || isNaN(precoVenda) || isNaN(precoCompra) || isNaN(kwhComprados)){
     showToast('Preenche todos os campos.'); return;
+  }
+  if(kwhAutoconsumo != null && (isNaN(kwhAutoconsumo) || kwhAutoconsumo > kwhProduzidos)){
+    showToast('Os kWh consumidos da produção não podem ser mais do que os produzidos.'); return;
   }
   if(kwhVendidos > kwhProduzidos){
     showToast('Os kWh vendidos não podem ser mais do que os produzidos.'); return;
   }
   if(editingSolarId){
     const r = state.solar.registos.find(x=>x.id===editingSolarId);
-    if(r){ r.mes=mes; r.kwhProduzidos=kwhProduzidos; r.kwhVendidos=kwhVendidos; r.precoVenda=precoVenda; r.precoCompra=precoCompra; r.kwhComprados=kwhComprados; r.kwhUsados=kwhUsados; }
+    if(r){ r.mes=mes; r.inicio=inicio; r.fim=fim; r.dias=dias; r.kwhProduzidos=kwhProduzidos; r.kwhVendidos=kwhVendidos; r.precoVenda=precoVenda; r.precoCompra=precoCompra; r.kwhComprados=kwhComprados; r.kwhUsados=kwhUsados; r.kwhAutoconsumo=kwhAutoconsumo; }
     saveState();
     cancelEditSolar();
     renderSolarAll();
     showToast('Registo atualizado.');
     return;
   }
-  state.solar.registos.push({ id: uid(), mes, kwhProduzidos, kwhVendidos, precoVenda, precoCompra, kwhComprados, kwhUsados });
+  state.solar.registos.push({ id: uid(), mes, inicio, fim, dias, kwhProduzidos, kwhVendidos, precoVenda, precoCompra, kwhComprados, kwhUsados, kwhAutoconsumo });
   saveState();
   document.getElementById('form-solar').reset();
-  document.getElementById('solar-mes-btn').textContent = 'Escolher mês';
+  document.getElementById('solar-dias-hint').textContent = '';
   renderSolarAll();
   showToast('Registo adicionado.');
 });
