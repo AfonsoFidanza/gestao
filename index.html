@@ -113,6 +113,7 @@
 
   .subtabs{ display:flex; gap:4px; margin-bottom:18px; border-bottom:1px solid var(--border-soft); overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
   #view-dashboard.blur-values .money-blur{ filter:blur(6px); transition:filter 0.15s; user-select:none; }
+  #view-dashboard.blur-values input[type="number"]{ filter:blur(6px); }
   .subtabs::-webkit-scrollbar{ display:none; }
   .subtabs button{ all:unset; padding:9px 16px; font-size:13.5px; color:var(--text-muted); border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
   .subtabs button.active{ color:var(--paper); border-bottom-color:var(--savings); }
@@ -4062,11 +4063,47 @@ function renderCategoryTrend(){
   </div>`;
   container.innerHTML = chart + legend;
 }
+// Saldo da conta à ordem DEPOIS de cada movimento, em ordem cronológica (data; no mesmo dia, pela
+// ordem em que foram registados; as transferências desse dia contam ANTES dos lançamentos, porque
+// normalmente servem para os cobrir). Só para
+// mostrar na lista — usa as mesmas regras de computeBalancesTimeline e não altera nada.
+function computeEntryRunningBalances(){
+  const bal = {}; ALL_ACCOUNT_KEYS.forEach(k => bal[k] = Number(state.initial[k])||0);
+  const events = [];
+  state.entries.forEach((e,i)=> events.push({ date:e.date, order:0, idx:i, e }));
+  state.transfers.forEach((t,i)=> events.push({ date:t.date, order:-1, idx:i, t }));
+  events.sort((a,b)=> a.date.localeCompare(b.date) || a.order-b.order || a.idx-b.idx);
+  const result = {};
+  events.forEach(ev=>{
+    if(ev.t){
+      const amt = Number(ev.t.amount)||0;
+      bal[accKey(ev.t.fromOwner, ev.t.fromType)] -= amt;
+      bal[accKey(ev.t.toOwner, ev.t.toType)] += amt;
+      return;
+    }
+    const e = ev.e, amt = Number(e.amount)||0;
+    let who = null;
+    if(e.type === 'receita'){
+      if(OWNERS.includes(e.owner)){ bal[accKey(e.owner,'corrente')] += amt; who = e.owner; }
+    } else if(OWNERS.includes(e.owner)){ bal[accKey(e.owner,'corrente')] -= amt; who = e.owner; }
+    else if(e.owner === 'conjunto'){
+      if(e.payer){ bal[accKey(e.payer,'corrente')] -= amt; who = e.payer; }
+      else {
+        const sh = splitShares(amt, e.splitType, e.splitPercentAfonso);
+        bal[accKey('afonso','corrente')] -= sh.afonso; bal[accKey('leonor','corrente')] -= sh.leonor;
+        who = 'afonso';
+      }
+    }
+    if(who) result[e.id] = { who, value: bal[accKey(who,'corrente')] };
+  });
+  return result;
+}
 function renderTransacoes(){
   renderReembolsoHistory();
   renderCategoryTrend();
   const filterTipo = document.getElementById('filter-tipo').value;
   const filterQuem = document.getElementById('filter-quem').value;
+  const runBal = computeEntryRunningBalances();
   const rows = [...state.entries]
     .filter(e => filterTipo==='todos' || e.type===filterTipo)
     .filter(e => filterQuem==='todos' || e.owner===filterQuem)
@@ -4105,7 +4142,7 @@ function renderTransacoes(){
       <td>${e.category}${(!isIncome && e.essential) ? ' <span class="tag">essencial</span>' : ''}${e.generated ? ' <span class="tag">recorrente</span>' : ''}${(!isIncome && e.excludeFromBudget) ? ' <span class="tag" title="Não conta para o orçamento pessoal">fora do orçamento</span>' : ''}</td>
       <td>${e.banco ? `<span class="tag">${e.banco}</span>` : '<span class="micro">—</span>'}</td>
       <td>${escapeHtml(e.desc||'')}</td>
-      <td class="num" style="color:${isIncome?'var(--income)':'var(--expense)'}">${isIncome?'+':'-'} ${fmtMoney(e.amount)}</td>
+      <td class="num" style="color:${isIncome?'var(--income)':'var(--expense)'}">${isIncome?'+':'-'} ${fmtMoney(e.amount)}${runBal[e.id] ? `<div class="micro" style="color:var(--text-dim); font-weight:400;" title="Saldo da conta à ordem de ${OWNER_LABEL[runBal[e.id].who]} depois deste movimento">${fmtMoney(runBal[e.id].value)}</div>` : ''}</td>
       <td><div class="row-actions"><button class="icon-btn" data-edit-entry="${e.id}">✎</button><button class="icon-btn" data-del-entry="${e.id}">✕</button></div></td>
     </tr>`;
   };
@@ -6905,10 +6942,23 @@ document.addEventListener('click', (ev)=>{
   document.getElementById('salario-modal').classList.add('show');
 });
 const blurToggleBtn = document.getElementById('blur-toggle-btn');
+// Os navegadores não aplicam o desfoque (filter) a texto dentro de gráficos SVG, por isso nos
+// gráficos os valores são trocados por "••••" enquanto estão escondidos (o original fica guardado
+// e volta quando mostras os valores outra vez).
+function syncSvgMask(){
+  const dash = document.getElementById('view-dashboard');
+  if(!dash) return;
+  const on = !!(state.settings && state.settings.blurValues);
+  dash.querySelectorAll('svg .money-blur').forEach(el=>{
+    if(on && el.dataset.orig === undefined){ el.dataset.orig = el.textContent; el.textContent = '••••'; }
+    else if(!on && el.dataset.orig !== undefined){ el.textContent = el.dataset.orig; delete el.dataset.orig; }
+  });
+}
 function applyBlurState(){
   const dash = document.getElementById('view-dashboard');
   const on = !!(state.settings && state.settings.blurValues);
   dash.classList.toggle('blur-values', on);
+  syncSvgMask();
   blurToggleBtn.textContent = on ? 'Mostrar valores' : 'Esconder valores';
 }
 blurToggleBtn.addEventListener('click', ()=>{
@@ -6917,6 +6967,56 @@ blurToggleBtn.addEventListener('click', ()=>{
   saveState();
 });
 applyBlurState();
+// Marca automaticamente QUALQUER valor em euros dentro do Painel com .money-blur (texto solto,
+// gráficos SVG, cartões, avisos...), para o botão "Esconder valores" esconder tudo e não só os
+// valores marcados à mão. Percentagens e datas não são afetadas — só o que tem "€".
+const MONEY_RE = /[-−–+]?\s?\d[\d\s\u00a0\u202f.]*,\d{1,2}\s*€|€\s?[-−–+]?\d[\d\s\u00a0\u202f.]*(?:,\d{1,2})?/g;
+function markDashboardMoney(){
+  const root = document.getElementById('view-dashboard');
+  if(!root) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const todo = [];
+  let n;
+  while((n = walker.nextNode())){
+    const p = n.parentElement;
+    if(!p || p.closest('.money-blur, script, style')) continue;
+    MONEY_RE.lastIndex = 0;
+    if(MONEY_RE.test(n.nodeValue)) todo.push(n);
+  }
+  todo.forEach(node=>{
+    const text = node.nodeValue;
+    const isSvg = !!node.parentElement.closest('svg');
+    const frag = document.createDocumentFragment();
+    let last = 0, m;
+    MONEY_RE.lastIndex = 0;
+    while((m = MONEY_RE.exec(text))){
+      if(m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+      const el = isSvg ? document.createElementNS('http://www.w3.org/2000/svg','tspan') : document.createElement('span');
+      el.setAttribute('class','money-blur');
+      el.textContent = m[0];
+      frag.appendChild(el);
+      last = m.index + m[0].length;
+    }
+    if(last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  });
+}
+(function(){
+  const root = document.getElementById('view-dashboard');
+  let scheduled = false;
+  const obs = new MutationObserver(()=>{
+    if(scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(()=>{
+      scheduled = false;
+      obs.disconnect();
+      try{ markDashboardMoney(); syncSvgMask(); }catch(e){}
+      obs.observe(root, { childList:true, subtree:true, characterData:true });
+    });
+  });
+  try{ markDashboardMoney(); syncSvgMask(); }catch(e){}
+  obs.observe(root, { childList:true, subtree:true, characterData:true });
+})();
 document.getElementById('salario-cancel').addEventListener('click', ()=>{
   document.getElementById('salario-modal').classList.remove('show');
   salarioModalOwner = null;
