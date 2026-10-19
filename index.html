@@ -2110,7 +2110,7 @@ function defaultState(){
     cgd: {
       items: [
         { id: 'cgd-renda', name: 'Renda / Prestação', amount: 1132.67 },
-        { id: 'cgd-1', name: 'Gastos para manutenção de conta', amount: 50 },
+        { id: 'cgd-1', name: 'Gasolina', amount: 50 },
         { id: 'cgd-2', name: 'Manutenção de conta', amount: 4.16 },
         { id: 'cgd-3', name: 'Quotas Sporting', amount: 14 }
       ],
@@ -2179,6 +2179,10 @@ function loadFromParsed(parsed){
   merged.cgd = Object.assign({}, defaultCgd, parsed.cgd||{});
   merged.cgd.items = Array.isArray(merged.cgd.items) && merged.cgd.items.length ? merged.cgd.items : defaultCgd.items;
   merged.cgd.checked = Object.assign({}, merged.cgd.checked||{});
+  const cgdNames = {'cgd-1':'Gasolina','cgd-2':'Manutenção de conta','cgd-3':'Quotas Sporting'};
+  merged.cgd.items.forEach(it=>{
+    if(cgdNames[it.id] && (/^Débito \d$/.test(it.name) || it.name==='Gastos para manutenção de conta' || it.name==='Manutenção de conta' || it.name==='Quotas Sporting')) it.name = cgdNames[it.id];
+  });
   merged.investmentProducts = merged.investmentProducts || [];
   merged.customCategories = Object.assign({receita:[],despesa:[],futuras:[]}, parsed.customCategories||{});
   merged.customCategoryType = Object.assign({}, parsed.customCategoryType||{});
@@ -3663,7 +3667,7 @@ function renderCgdPanel(){
     ${!hasSalaryThisMonth
       ? `<button class="btn small" style="background:var(--income); color:#FFFFFF; margin-bottom:12px;" data-cgd-salario>💶 Já recebi: Salário</button>
          <p class="helptext" style="margin-top:0;">Confirma aqui quando o salário cair na CGD — o checklist abaixo reinicia-se e ficas pronto para ires marcando as saídas fixas à medida que as pagas.</p>`
-      : `<div class="allowance-row"><span>Salário recebido</span><span class="num pos">${fmtMoney(state.cgd.salaryAmount)}</span></div>
+      : `<div class="allowance-row" style="align-items:center; gap:8px;"><span style="flex:1;">Salário recebido</span><input type="number" data-cgd-salary value="${state.cgd.salaryAmount}" step="0.01" min="0" style="width:110px; text-align:right; font-family:var(--font-mono); font-size:13px; color:var(--income);"><span style="width:14px; text-align:center;">€</span></div>
          ${state.cgd.previousSnapshot ? `<button class="icon-btn" data-cgd-undo-salario style="margin-bottom:8px;">↺ Desfazer "Já recebi: Salário"</button>` : ''}
          <p class="helptext" style="margin-top:-2px; margin-bottom:10px;">Marca cada saída à medida que a pagas na realidade — é só para acompanhares, não afeta nenhum cálculo. Os valores são editáveis e ficam guardados para os próximos meses.</p>
          ${itemsHtml}
@@ -3732,6 +3736,11 @@ function renderCgdPanel(){
     saveState();
     renderAll();
     showToast('Confirmação do salário desfeita — voltaste ao ciclo anterior.');
+  });
+  const salInp = container.querySelector('[data-cgd-salary]');
+  if(salInp) salInp.addEventListener('change', ()=>{
+    state.cgd.salaryAmount = Math.max(0, Number(salInp.value)||0);
+    saveState(); renderCgdPanel();
   });
   container.querySelectorAll('[data-cgd-check]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
