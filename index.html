@@ -948,12 +948,11 @@
     #to-top{ display:block; position:fixed; left:16px; bottom:calc(18px + env(safe-area-inset-bottom)); z-index:130; height:48px; padding:0 20px; border-radius:999px; border:1px solid var(--border); background:#fff; color:var(--text); font:600 14px var(--font-body); box-shadow:0 6px 18px rgba(0,0,0,.12); opacity:0; pointer-events:none; transform:translateY(8px); transition:opacity .18s, transform .18s; }
     #to-top.show{ opacity:1; pointer-events:auto; transform:none; }
   }
-  html, body{ overscroll-behavior-y:none; }
+  html, body{ overscroll-behavior-y:none; overscroll-behavior:none; }
   input[type=date]{ min-width:0; max-width:100%; box-sizing:border-box; -webkit-appearance:none; appearance:none; text-align:left; }
   .field input[type=date]{ width:100%; display:block; }
   @media (max-width:900px){
-    .topbar{ position:fixed !important; top:0; left:0; right:0; }
-    .shell{ padding-top:var(--tbh, 66px); }
+    .topbar{ position:sticky !important; top:0; }
     #entry-modal .form-row .field{ flex:1 1 calc(50% - 8px); min-width:0; }
     #entry-modal .form-row .field > .month-picker-btn, #entry-modal .form-row .field > input, #entry-modal .form-row .field > select{ width:100%; }
   }
