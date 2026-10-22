@@ -1049,6 +1049,16 @@
           <div id="trans-category-donut"></div>
         </div>
 
+        <div class="card" id="bank-sync-card">
+          <div class="card-title">Acertar com o banco</div>
+          <p class="helptext" style="margin-top:-6px;">O banco é sempre a verdade. Escreve o saldo que vês agora na conta à ordem e a app lança a diferença como "Acerto ao banco", para ficar igual.</p>
+          <div class="form-row" style="align-items:flex-end;">
+            <div class="field only-dual" style="max-width:150px;"><label>Conta de</label><select id="bs-owner"><option value="afonso">Afonso</option><option value="leonor">Leonor</option></select></div>
+            <div class="field" style="max-width:200px;"><label>Saldo real no banco (€)</label><input type="number" step="0.01" id="bs-real" placeholder="ex: 8,69"></div>
+            <div class="field" style="flex:1 1 220px;"><label>Na app</label><div id="bs-info" class="micro" style="min-height:36px; line-height:36px;"></div></div>
+            <button type="button" class="btn" id="bs-apply">Acertar</button>
+          </div>
+        </div>
         <div class="card">
           <div class="card-title" id="form-transacao-title">Novo registo</div>
           <form id="form-transacao">
@@ -1166,6 +1176,7 @@
                 <option value="todos">Todos</option>
                 <option value="receita">Receitas</option>
                 <option value="despesa">Despesas</option>
+                <option value="transferencia">Transferências</option>
               </select>
             </div>
             <div class="field" style="max-width:160px;">
@@ -2857,7 +2868,26 @@ function cycleMonthsLabel(cycle){
 // O que a outra pessoa te deve neste grupo, agora (0 se não há ciclo ou se já pagou).
 function receivableOwed(owner, group){
   const cycle = state.receivableCycles[owner].current;
-  return (cycle && !cycle.paid) ? cycleGroupTotal(cycle, group) : 0;
+  const fixed = (cycle && !cycle.paid) ? cycleGroupTotal(cycle, group) : 0;
+  // + o que se está a acumular para o próximo ciclo (atualiza sempre que lanças faturas conjuntas).
+  return fixed + receivableLiveItems(owner).filter(i => i.group === group).reduce((t,i)=> t + i.amount, 0);
+}
+// O que o próximo clique em "Já recebi" iria cobrar agora, com as mesmas regras do ciclo: só a fatura
+// mais recente de cada categoria, só o que ainda não foi incluído, e a Renda (só no cartão do Afonso),
+// sem repetir uma Renda do mesmo mês que o ciclo por pagar já traz.
+function receivableLiveItems(owner){
+  const rec = state.receivableCycles[owner];
+  const prev = rec.current;
+  const since = (prev && prev.startDate) || '2000-01-01';
+  const exclude = new Set(rec.includedEntryIds || []);
+  const items = collectCycleBills(state, owner, since, todayISO(), exclude).items.slice();
+  if(owner === 'afonso'){
+    const r = computeRendaCgdShare(state);
+    const month = addMonths(todayISO().slice(0,7), 1);
+    const dup = prev && !prev.paid && (prev.months || []).includes(month);
+    if(r > 0.005 && !dup) items.unshift({ kind:'renda', category:'Renda', group:'fixas', month, amount:r });
+  }
+  return items;
 }
 // Se ainda há valores do ciclo anterior por receber, a app tem de perguntar o que fazer a eles.
 function receivableNeedsDecision(owner){
@@ -3783,7 +3813,7 @@ function renderTransCategoryDonut(){
   const cycleStart = computeCycleStart('afonso') || (monthKey(new Date()) + '-01');
   const byCat = {};
   state.entries.forEach(e=>{
-    if(e.type !== 'despesa' || e.date < cycleStart || e.date > today) return;
+    if(e.type !== 'despesa' || e.bankAdjust || e.date < cycleStart || e.date > today) return;
     byCat[e.category] = (byCat[e.category]||0) + (Number(e.amount)||0);
   });
   const entries = Object.entries(byCat).filter(([,v]) => v > 0.01).sort((a,b) => b[1]-a[1]);
@@ -4213,7 +4243,7 @@ function renderReembolsoHistory(){
 }
 
 // O HTML do cartão "A receber", sem tocar no DOM (assim pode ser testado à parte).
-function buildReceivableCardHtml(owner){
+function buildReceivableCardHtmlBase(owner){
   const cycle = state.receivableCycles[owner].current;
   const other = otherOwnerOf(owner);
   const otherName = OWNER_LABEL[other];
@@ -4253,6 +4283,22 @@ function buildReceivableCardHtml(owner){
       <button class="btn small secondary" data-receivable-no="${owner}">Não</button>
       <button class="btn small" data-receivable-yes="${owner}">Sim</button>
     </div>`;
+}
+// O cartão mostra sempre, por baixo do ciclo fixo, o que se está a acumular para o PRÓXIMO ciclo —
+// com as mesmas regras do clique em "Já recebi" (só a fatura mais recente de cada categoria, só o
+// que ainda não foi incluído num ciclo, e a Renda do Afonso a entrar nesse clique).
+function buildReceivableLiveHtml(owner){
+  const items = receivableLiveItems(owner);
+  const total = items.reduce((a,b)=>a+b.amount,0);
+  const lines = items.map(i => i.kind === 'renda' ? `Renda de ${monthLabel(i.month)}: ${fmtMoney(i.amount)}` : `${escapeHtml(i.category)} (${formatDatePT(i.date)}): ${fmtMoney(i.amount)}`);
+  return `<div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--border);">
+    <div class="allowance-row"><span><strong>A acumular para o próximo ciclo</strong></span><span class="num ${total > 0.005 ? 'gold' : ''}">${fmtMoney(total)}</span></div>
+    <div class="micro" style="margin:-2px 0 6px 0;">${lines.length ? lines.join(' · ') : 'Ainda não lançaste faturas conjuntas pagas por ti desde o último ciclo.'}</div>
+    <p class="helptext" style="margin:4px 0 0 0;">Atualiza sozinho sempre que lanças uma fatura conjunta. Conta só a mais recente de cada categoria e passa a valer no próximo "Já recebi: Salário".</p>
+  </div>`;
+}
+function buildReceivableCardHtml(owner){
+  return buildReceivableCardHtmlBase(owner) + buildReceivableLiveHtml(owner);
 }
 function renderReceivableTotal(owner){
   const container = document.getElementById(`${owner}-receivable-total`);
@@ -4893,18 +4939,28 @@ function renderCategoryTrend(){
 // ordem em que foram registados; as transferências desse dia contam ANTES dos lançamentos, porque
 // normalmente servem para os cobrir). Só para
 // mostrar na lista — usa as mesmas regras de computeBalancesTimeline e não altera nada.
+// Ordem de INSERÇÃO: o carimbo de tempo está nos primeiros 8 caracteres do id (uid()). Ids sem esse
+// formato usam a data do movimento. O desempate é a posição na lista.
+function insertionTs(o){
+  const id = String(o && o.id || '');
+  if(/^[0-9a-z]{13}$/.test(id)){ const v = parseInt(id.slice(0,8),36); if(v > 1e11 && v < 1e13) return v; }
+  const d = Date.parse((o && o.date || '') + 'T12:00:00'); return isNaN(d) ? 0 : d;
+}
 function computeEntryRunningBalances(){
   const bal = {}; ALL_ACCOUNT_KEYS.forEach(k => bal[k] = Number(state.initial[k])||0);
   const events = [];
-  state.entries.forEach((e,i)=> events.push({ date:e.date, order:0, idx:i, e }));
-  state.transfers.forEach((t,i)=> events.push({ date:t.date, order:-1, idx:i, t }));
-  events.sort((a,b)=> a.date.localeCompare(b.date) || a.order-b.order || a.idx-b.idx);
+  state.entries.forEach((e,i)=> events.push({ ts:insertionTs(e), seq:i, e }));
+  state.transfers.forEach((t,i)=> events.push({ ts:insertionTs(t), seq:100000+i, t }));
+  events.sort((a,b)=> a.ts-b.ts || a.seq-b.seq);
   const result = {};
   events.forEach(ev=>{
     if(ev.t){
-      const amt = Number(ev.t.amount)||0;
-      bal[accKey(ev.t.fromOwner, ev.t.fromType)] -= amt;
-      bal[accKey(ev.t.toOwner, ev.t.toType)] += amt;
+      const t = ev.t, amt = Number(t.amount)||0;
+      bal[accKey(t.fromOwner, t.fromType)] -= amt;
+      bal[accKey(t.toOwner, t.toType)] += amt;
+      let who = null;
+      if(t.toType === 'corrente') who = t.toOwner; else if(t.fromType === 'corrente') who = t.fromOwner;
+      if(who) result[t.id] = { who, value: bal[accKey(who,'corrente')] };
       return;
     }
     const e = ev.e, amt = Number(e.amount)||0;
@@ -4927,13 +4983,15 @@ function computeEntryRunningBalances(){
 function renderTransacoes(){
   renderReembolsoHistory();
   renderCategoryTrend();
+  renderBankSync();
   const filterTipo = document.getElementById('filter-tipo').value;
   const filterQuem = document.getElementById('filter-quem').value;
   const runBal = computeEntryRunningBalances();
-  const rows = [...state.entries]
-    .filter(e => filterTipo==='todos' || e.type===filterTipo)
-    .filter(e => filterQuem==='todos' || e.owner===filterQuem)
-    .sort((a,b)=> b.date.localeCompare(a.date));
+  // Movimentos + transferências, tudo por ordem de inserção (o mais recente primeiro).
+  const rows = [
+    ...state.entries.filter(e => (filterTipo==='todos' || e.type===filterTipo) && (filterQuem==='todos' || e.owner===filterQuem)).map((e,i)=>({ kind:'e', e, id:e.id, ts:insertionTs(e), seq:i })),
+    ...(filterTipo==='todos' || filterTipo==='transferencia' ? state.transfers.filter(t => filterQuem==='todos' || t.fromOwner===filterQuem || t.toOwner===filterQuem).map((t,i)=>({ kind:'t', t, id:t.id, ts:insertionTs(t), seq:100000+i })) : [])
+  ].sort((a,b)=> b.ts-a.ts || b.seq-a.seq);
 
   const container = document.getElementById('tabela-transacoes');
   if(rows.length === 0){ container.innerHTML = '<div class="empty">Ainda não há registos. Adiciona o primeiro acima.</div>'; return; }
@@ -4942,13 +5000,30 @@ function renderTransacoes(){
   // atual começa aberto, os restantes ficam colapsados (clica no título para abrir/fechar).
   if(!expandedTxMonths) expandedTxMonths = new Set([monthKey(new Date())]);
   const groups = [];
-  rows.forEach(e=>{
-    const mKey = e.date.slice(0,7);
+  rows.forEach(r=>{
+    const dt = new Date(r.ts || Date.now());
+    const mKey = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0');
     let g = groups[groups.length-1];
     if(!g || g.mKey !== mKey){ g = { mKey, rows: [] }; groups.push(g); }
-    g.rows.push(e);
+    g.rows.push(r);
   });
 
+  const xferRowHtml = (t) => {
+    const rb = runBal[t.id];
+    const toC = t.toType === 'corrente', frC = t.fromType === 'corrente';
+    const sign = toC ? '+' : (frC ? '−' : '⇄');
+    const who = t.fromOwner === t.toOwner ? `<span class="tag ${t.fromOwner==='afonso'?'tag-afonso':'tag-leonor'}">${OWNER_LABEL[t.fromOwner]}</span>` : `<span class="tag">${OWNER_LABEL[t.fromOwner]} → ${OWNER_LABEL[t.toOwner]}</span>`;
+    return `<tr>
+      <td>${formatDatePT(t.date)}</td>
+      <td>${who}</td>
+      <td><span class="tag" style="color:var(--savings)">Transferência</span></td>
+      <td>${ACCOUNT_TYPE_LABEL[t.fromType]} <span style="opacity:.6;">→</span> ${ACCOUNT_TYPE_LABEL[t.toType]}${t.templateId ? ' <span class="tag">recorrente</span>' : ''}${t.auto ? ' <span class="tag">automático</span>' : ''}</td>
+      <td><span class="micro">—</span></td>
+      <td>${escapeHtml(t.desc||'')}</td>
+      <td class="num" style="color:var(--text-dim)">${sign} ${fmtMoney(t.amount)}${rb ? `<div class="micro" style="color:var(--text-dim); font-weight:400;" title="Saldo da conta à ordem de ${OWNER_LABEL[rb.who]} depois deste movimento">${fmtMoney(rb.value)}</div>` : ''}</td>
+      <td><div class="row-actions"><button class="icon-btn" data-del-xfer="${t.id}">✕</button></div></td>
+    </tr>`;
+  };
   const rowHtml = (e) => {
     const isIncome = e.type === 'receita';
     let quemHtml;
@@ -4985,7 +5060,7 @@ function renderTransacoes(){
     if(isOpen){
       html += `<div class="month-group-body">
         <table><thead><tr><th>Data</th><th>De quem</th><th>Tipo</th><th>Categoria</th><th>Banco</th><th>Descrição</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody>
-        ${g.rows.map(rowHtml).join('')}
+        ${g.rows.map(r => r.kind==='t' ? xferRowHtml(r.t) : rowHtml(r.e)).join('')}
         </tbody></table>
       </div>`;
     }
@@ -4998,6 +5073,18 @@ function renderTransacoes(){
       const m = btn.getAttribute('data-month-toggle');
       if(expandedTxMonths.has(m)) expandedTxMonths.delete(m); else expandedTxMonths.add(m);
       renderTransacoes();
+    });
+  });
+  container.querySelectorAll('[data-del-xfer]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.getAttribute('data-del-xfer');
+      const t = state.transfers.find(x=>x.id===id);
+      if(t && t.templateId){
+        const tpl = state.recurring.find(x=>x.id===t.templateId);
+        if(tpl){ tpl.skippedMonths = tpl.skippedMonths || []; const m = t.date.slice(0,7); if(!tpl.skippedMonths.includes(m)) tpl.skippedMonths.push(m); }
+      }
+      state.transfers = state.transfers.filter(x=>x.id !== id);
+      saveState(); renderAll(); showToast('Transferência removida.');
     });
   });
   container.querySelectorAll('[data-edit-entry]').forEach(btn=>{
@@ -7464,6 +7551,37 @@ document.getElementById('form-transacao').addEventListener('submit', (ev)=>{
   renderAll();
   showToast('Registo adicionado.');
   checkOverspendForEntry(entry);
+});
+
+/* ======================= ACERTAR COM O BANCO ======================= */
+function bankSyncAppBalance(owner){ return computeBalancesAtDate(todayISO())[accKey(owner,'corrente')] || 0; }
+function renderBankSync(){
+  const card = document.getElementById('bank-sync-card'); if(!card) return;
+  const ownerSel = document.getElementById('bs-owner'); const owner = (ownerSel && !isSingleUser()) ? ownerSel.value : 'afonso';
+  const real = parseFloat(document.getElementById('bs-real').value);
+  const app = bankSyncAppBalance(owner);
+  const info = document.getElementById('bs-info');
+  let txt = `Saldo na app: <strong>${fmtMoney(app)}</strong>`;
+  if(!isNaN(real)){
+    const diff = real - app;
+    txt += Math.abs(diff) < 0.005 ? ' · já está igual ao banco ✓' : ` · diferença: <strong style="color:${diff>0?'var(--income)':'var(--expense)'}">${diff>0?'+':'−'} ${fmtMoney(Math.abs(diff))}</strong> (${diff>0?'receita':'despesa'} "Acerto ao banco")`;
+  }
+  info.innerHTML = txt;
+}
+document.getElementById('bs-owner').addEventListener('change', renderBankSync);
+document.getElementById('bs-real').addEventListener('input', renderBankSync);
+document.getElementById('bs-apply').addEventListener('click', ()=>{
+  const owner = isSingleUser() ? 'afonso' : document.getElementById('bs-owner').value;
+  const real = parseFloat(document.getElementById('bs-real').value);
+  if(isNaN(real)){ showToast('Escreve o saldo que tens no banco.'); return; }
+  const diff = Math.round((real - bankSyncAppBalance(owner))*100)/100;
+  if(Math.abs(diff) < 0.005){ showToast('A app já está igual ao banco.'); return; }
+  const isIn = diff > 0;
+  state.entries.push({ id: uid(), type: isIn ? 'receita' : 'despesa', date: todayISO(), owner, category: isIn ? 'Acerto' : 'acerto',
+    amount: Math.abs(diff), desc: 'Acerto ao banco', essential: false, immediate: isIn ? true : undefined,
+    excludeFromBudget: isIn ? undefined : true, bankAdjust: true });
+  document.getElementById('bs-real').value = '';
+  saveState(); renderAll(); showToast('Acertado com o banco: ' + (isIn ? '+' : '−') + ' ' + fmtMoney(Math.abs(diff)));
 });
 
 document.getElementById('filter-tipo').addEventListener('change', renderTransacoes);
