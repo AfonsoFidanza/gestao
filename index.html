@@ -948,6 +948,16 @@
     #to-top{ display:block; position:fixed; left:16px; bottom:calc(18px + env(safe-area-inset-bottom)); z-index:130; height:48px; padding:0 20px; border-radius:999px; border:1px solid var(--border); background:#fff; color:var(--text); font:600 14px var(--font-body); box-shadow:0 6px 18px rgba(0,0,0,.12); opacity:0; pointer-events:none; transform:translateY(8px); transition:opacity .18s, transform .18s; }
     #to-top.show{ opacity:1; pointer-events:auto; transform:none; }
   }
+  html, body{ overscroll-behavior-y:none; }
+  input[type=date]{ min-width:0; max-width:100%; box-sizing:border-box; -webkit-appearance:none; appearance:none; text-align:left; }
+  .field input[type=date]{ width:100%; display:block; }
+  @media (max-width:900px){
+    .topbar{ position:fixed !important; top:0; left:0; right:0; }
+    .shell{ padding-top:var(--tbh, 66px); }
+    #entry-modal .form-row .field{ flex:1 1 calc(50% - 8px); min-width:0; }
+    #entry-modal .form-row .field > .month-picker-btn, #entry-modal .form-row .field > input, #entry-modal .form-row .field > select{ width:100%; }
+  }
+  .field > .month-picker-btn{ height:46px; min-height:46px; box-sizing:border-box; width:100%; border-radius:12px; padding:0 14px; text-align:left; font-size:15px; }
 </style>
 <script type="module">
   import * as pdfjsLibModule from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.1.200/pdf.min.mjs';
@@ -5586,11 +5596,12 @@ function populateTransferSelects(){
   const keys = isSingleUser() ? ALL_ACCOUNT_KEYS.filter(k=>k.startsWith('afonso_')) : ALL_ACCOUNT_KEYS;
   const opts = keys.map(k=>{
     const [owner, type] = k.split('_');
-    return `<option value="${k}">${OWNER_LABEL[owner]} · ${ACCOUNT_TYPE_LABEL[type]}</option>`;
+    return `<option value="${k}">${owner==='afonso' ? '' : OWNER_LABEL[owner] + ' · '}${ACCOUNT_TYPE_LABEL[type]}</option>`;
   }).join('');
   document.getElementById('x-de').innerHTML = opts;
   document.getElementById('x-para').innerHTML = opts;
-  document.getElementById('x-para').selectedIndex = Math.min(1, keys.length-1);
+  if(keys.includes('afonso_poupanca') && keys.includes('afonso_corrente')){ document.getElementById('x-de').value = 'afonso_poupanca'; document.getElementById('x-para').value = 'afonso_corrente'; }
+  else document.getElementById('x-para').selectedIndex = Math.min(1, keys.length-1);
   const sc = document.getElementById('x-shortcuts');
   if(sc){
     const owners = isSingleUser() ? ['afonso'] : ['afonso','leonor'];
@@ -5618,10 +5629,11 @@ function renderTransferSummary(){
   const cs = computeCycleStart('afonso') || (monthKey(new Date()) + '-01');
   const sums = { poupanca:[0,0], investimento:[0,0], retirada:[0,0] };
   state.transfers.forEach(t=>{ if(t.date < cs || t.date > today) return; const k = transferKind(t); if(sums[k]){ sums[k][0] += Number(t.amount)||0; sums[k][1]++; } });
+  const netSaved = Math.max(0, sums.poupanca[0] - sums.retirada[0]);
   const card = (k, label) => `<div style="flex:1 1 150px; padding:14px 16px; border:1px solid rgba(128,128,128,.25); border-radius:14px; background:rgba(128,128,128,.07);">
       <div style="font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text-dim);"><span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:${KIND_INFO[k][1]}; margin-right:6px;"></span>${label}</div>
-      <div style="font-size:22px; font-weight:700; margin-top:6px;" class="money-blur">${fmtMoney(sums[k][0])}</div>
-      <div class="micro">${sums[k][1]} movimento${sums[k][1]===1?'':'s'}</div></div>`;
+      <div style="font-size:22px; font-weight:700; margin-top:6px;" class="money-blur">${fmtMoney(k==='poupanca' ? netSaved : sums[k][0])}</div>
+      <div class="micro">${sums[k][1]} movimento${sums[k][1]===1?'':'s'}${k==='poupanca' ? ' · já sem retiradas' : ''}</div></div>`;
   box.innerHTML = `<div class="card"><div class="card-title">Neste ciclo <span class="micro" style="text-transform:none; letter-spacing:0;">· desde ${formatDatePT(cs)}</span></div>
     <div style="display:flex; gap:12px; flex-wrap:wrap;">${card('poupanca','Para poupança')}${card('investimento','Para investimento')}${card('retirada','Retiradas')}</div></div>`;
 }
@@ -7637,7 +7649,10 @@ function renderDashKpis(){
     try{ renderQCards(owner); }catch(e){ console.error(e); }
   });
 }
+function setTbh(){ const t=document.querySelector('.topbar'); if(t) document.documentElement.style.setProperty('--tbh', t.offsetHeight+'px'); }
+window.addEventListener('resize', setTbh); window.addEventListener('load', setTbh);
 function updateTopbar(){
+  setTbh();
   const sy = document.getElementById('tb-sync'); if(!sy) return;
   const local = (typeof usingLocalOnlyMode !== 'undefined') && usingLocalOnlyMode;
   sy.className = 'tb-sync ' + (local ? 'local' : 'ok');
