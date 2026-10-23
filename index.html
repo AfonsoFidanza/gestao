@@ -898,7 +898,7 @@
   .qk-seg button.on{ background:var(--card,#fff); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.1); }
   #qk-valor{ width:100%; box-sizing:border-box; border:none; background:transparent; font:700 40px var(--font-display); text-align:center; color:var(--text); outline:none; margin-bottom:14px; }
   #quick-modal .field input, #quick-modal .field select{ width:100%; }
-  @media (max-width:900px){ #fab-add{ right:16px; bottom:calc(18px + env(safe-area-inset-bottom)); } }
+  @media (max-width:900px){ #fab-add{ right:16px; bottom:calc(6px + env(safe-area-inset-bottom)); } }
   #form-transacao-cancel{ display:none !important; }
   #entry-modal .modal-box > .card-title{ font-size:22px; margin-bottom:16px; }
   #fab-add{ background:#6d4cff !important; }
@@ -945,7 +945,7 @@
   }
   #to-top{ display:none; }
   @media (max-width:900px){
-    #to-top{ display:block; position:fixed; left:16px; bottom:calc(18px + env(safe-area-inset-bottom)); z-index:130; height:48px; padding:0 20px; border-radius:999px; border:1px solid var(--border); background:#fff; color:var(--text); font:600 14px var(--font-body); box-shadow:0 6px 18px rgba(0,0,0,.12); opacity:0; pointer-events:none; transform:translateY(8px); transition:opacity .18s, transform .18s; }
+    #to-top{ display:block; position:fixed; left:16px; bottom:calc(10px + env(safe-area-inset-bottom)); z-index:130; height:48px; padding:0 20px; border-radius:999px; border:1px solid var(--border); background:#fff; color:var(--text); font:600 14px var(--font-body); box-shadow:0 6px 18px rgba(0,0,0,.12); opacity:0; pointer-events:none; transform:translateY(8px); transition:opacity .18s, transform .18s; }
     #to-top.show{ opacity:1; pointer-events:auto; transform:none; }
   }
   html, body{ overscroll-behavior-y:none; overscroll-behavior:none; }
@@ -957,6 +957,77 @@
     #entry-modal .form-row .field > .month-picker-btn, #entry-modal .form-row .field > input, #entry-modal .form-row .field > select{ width:100%; }
   }
   .field > .month-picker-btn{ height:46px; min-height:46px; box-sizing:border-box; width:100%; border-radius:12px; padding:0 14px; text-align:left; font-size:15px; }
+  #btn-export, #btn-import, #btn-reset, .ms-foot [data-ms=btn-export], .ms-foot [data-ms=btn-import], .ms-foot [data-ms=btn-reset]{ display:none !important; }
+  .cfg-data-btns{ display:flex; gap:10px; flex-wrap:wrap; }
+  .ph-btn.done{ background:#e3f4ea !important; color:#00633a !important; box-shadow:none !important; border:1px solid #b6e0c7 !important; }
+  .qbanner .ph-btn{ background:#00804a; }
+
+  .feat-off, [data-feat].feat-hide{ display:none !important; }
+  .navlist button.nav-feat{ color:#7fd1c7; border:1px dashed rgba(127,209,199,.45); margin-top:6px; }
+  .navlist button.nav-feat:hover{ background:rgba(127,209,199,.12); color:#a9e8df; }
+  .ms-grid button.ms-feat, #ms-grid button.ms-feat{ background:rgba(127,209,199,.12) !important; color:#7fd1c7 !important; border:1px dashed rgba(127,209,199,.45) !important; }
+  .feat-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border-soft,rgba(128,128,128,.18)); }
+  .feat-row:last-child{ border-bottom:none; }
+  .feat-row .ft{ flex:1; min-width:0; } .feat-row .ft b{ display:block; font-size:14px; } .feat-row .ft span{ font-size:12px; color:var(--text-dim); }
+  .feat-row input[type=checkbox]{ appearance:none; -webkit-appearance:none; width:42px; height:24px; border-radius:12px; background:rgba(128,128,128,.35); position:relative; cursor:pointer; flex:0 0 auto; transition:background .15s; border:none; padding:0; }
+  .feat-row input[type=checkbox]::after{ content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:transform .15s; }
+  .feat-row input[type=checkbox]:checked{ background:#2f9e6b; } .feat-row input[type=checkbox]:checked::after{ transform:translateX(18px); }
+  .wl-list{ margin:0 0 12px; padding-left:18px; font-size:13.5px; line-height:1.5; } .wl-list li{ margin-bottom:8px; }
+
+  .wl-actions{ display:flex !important; justify-content:center; gap:10px; margin-top:6px; }
+  .wl-actions .btn{ flex:1 1 0; min-width:0; justify-content:center; text-align:center; }
+  @media (max-width:520px){ .wl-actions{ flex-direction:column; } .wl-actions .btn{ width:100%; flex:none; } }
+  .sidebar .navlist{ flex:1; display:flex; flex-direction:column; }
+  .navlist button.nav-feat{ margin-top:auto !important; justify-content:center; }
+  details.cgd-d[open]::before{ content:''; position:fixed; inset:0; background:rgba(10,14,20,.5); z-index:1299; }
+  details.cgd-d[open] > .cgd-body{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:min(460px,92vw); max-height:84vh; overflow:auto; background:var(--surface,#fff); color:var(--text); border-radius:18px; padding:20px; z-index:1300; box-shadow:0 20px 60px rgba(0,0,0,.35); }
+  .cgd-close{ display:none; width:100%; margin-top:14px; }
+  details.cgd-d[open] .cgd-close{ display:block; }
+
+  .cgd-body input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
+  .cgd-body input[type=number]::-webkit-outer-spin-button, .cgd-body input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  details.cgd-d[open] > .cgd-body{ padding:22px 22px 18px; }
+  .cgd-body .allowance-row{ padding:9px 0; gap:10px; border:none; }
+  .cgd-body .allowance-row input[type=number]{ background:var(--surface-2,#f1f3f7); border:1px solid transparent; border-radius:10px; padding:8px 10px; font-weight:600; width:104px !important; }
+  .cgd-body .allowance-row input[type=number]:focus{ border-color:var(--savings,#2b6cb0); outline:none; background:#fff; }
+  .cgd-body input[type=checkbox]{ width:20px; height:20px; accent-color:#0a7d4b; flex:0 0 auto; }
+  .cgd-body input[data-cgd-name]{ font-size:14px !important; font-weight:500; flex:1; min-width:0; width:auto !important; }
+  .cgd-body .btn.small{ width:100%; height:46px; font-size:14px; border-radius:12px; margin-top:14px !important; }
+  .cgd-body .cgd-close, .cgd-body .cgd-cancel{ height:44px; border-radius:12px; margin-top:8px; }
+  .cgd-body .cgd-cancel{ display:none; width:100%; color:var(--expense); border-color:transparent; background:transparent; font-size:13px; }
+  details.cgd-d[open] .cgd-cancel{ display:block; }
+  .cgd-body hr{ display:none; }
+  .cgd-body input[type=number]{ font-size:19px !important; }
+  .cgd-body .allowance-row input[type=number]{ width:112px !important; padding:10px 12px; }
+  .cgd-body .allowance-row.total{ border-top:none !important; padding-top:6px !important; }
+  .cgd-body .allowance-row label{ min-width:0; }
+  .cgd-body .allowance-row input[type=number]{ width:92px !important; flex:0 0 auto; }
+  .cgd-body .allowance-row.total{ margin-top:6px; padding-top:14px; border-top:1px solid var(--border-soft,rgba(128,128,128,.25)); }
+
+  .cgd-bar{ background:none !important; border:none !important; box-shadow:none !important; padding:0 !important; margin:0 !important; }
+  details.cgd-d > summary{ display:none !important; }
+
+  .cgd-body [data-cgd-transfer]{ background:#d9f2e4 !important; color:#0a6b43 !important; border:1px solid #bfe6d1 !important; font-weight:700; }
+  .cgd-body [data-cgd-transfer]:hover{ background:#cbecda !important; }
+
+  .cgd-title{ font-size:19px; font-weight:700; margin:0 0 14px; }
+  .cgd-body .cgd-sal{ background:#eef7f2; border-radius:14px; padding:12px 14px !important; margin-bottom:10px; }
+  .cgd-body .cgd-sal input[type=number]{ background:#fff !important; font-size:22px !important; color:#0a7d4b; width:130px !important; }
+  .cgd-body .allowance-row:not(.cgd-sal){ padding:8px 4px; border-bottom:1px solid var(--border-soft,rgba(128,128,128,.15)); }
+  .cgd-body .allowance-row:not(.cgd-sal) input[type=number]{ font-size:16px !important; width:96px !important; padding:8px 10px; background:transparent !important; border:1px solid var(--border-soft,rgba(128,128,128,.25)); }
+  .cgd-body input[type=checkbox]{ width:22px; height:22px; border-radius:7px; }
+  .cgd-body .btn{ display:flex !important; align-items:center; justify-content:center; text-align:center; }
+  .cgd-body [data-cgd-transfer]{ height:50px !important; font-size:15px !important; margin-top:18px !important; }
+  .cgd-body .cgd-close{ border:none !important; background:transparent !important; color:var(--text-muted,#667); height:40px !important; margin-top:6px !important; }
+  .cgd-body .cgd-cancel{ height:34px !important; margin-top:0 !important; font-size:12.5px !important; opacity:.85; }
+  .cgd-body .cgd-close:hover, .cgd-body .cgd-cancel:hover{ background:rgba(128,128,128,.08) !important; }
+
+  .navlist .cfg-sep{ margin-top:auto !important; }
+  .navlist button.nav-feat{ margin-top:6px !important; }
+  .navlist button.nav-feat.feat-hidden{ visibility:hidden; pointer-events:none; }
+
+  .split-knob{ width:12px; height:100%; border-radius:6px; background:#fff; border:1px solid rgba(0,0,0,.2); box-shadow:0 1px 5px rgba(0,0,0,.35); }
+  #split-h1:hover .split-knob, #split-h2:hover .split-knob{ box-shadow:0 2px 9px rgba(0,0,0,.45); }
 </style>
 <script type="module">
   import * as pdfjsLibModule from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.1.200/pdf.min.mjs';
@@ -1043,7 +1114,9 @@
       <button data-view="credito"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg><span class="nl">Crédito Habitação</span></button>
       <button data-view="investimentos"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg><span class="nl">Investimentos</span></button>
       <button data-view="solar"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg><span class="nl">Painéis Solares</span></button>
+      <hr class="nav-sep cfg-sep">
       <button data-view="config"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg><span class="nl">Configuração &amp; Guia</span></button>
+      <button type="button" id="nav-feat" class="nav-feat"><span>＋ Extras</span></button>
     </nav>
     <div class="sidebar-foot">
       <button class="ghost-btn" id="btn-reset" style="color:var(--expense)">Repor todos os dados</button>
@@ -1655,15 +1728,13 @@
         <div class="card-title">Como dividir esse dinheiro</div>
         <p class="helptext" style="margin-top:-6px;">As 3 fatias somam sempre 100% do valor total acima. A Poupança só muda quando a arrastas diretamente — mexer em Produtos ou Amortização troca sempre só entre os dois, nunca tira à Poupança.</p>
         <div id="split-ui" style="margin:10px 0 18px;">
-          <div id="split-sentence" style="font-size:15px; margin-bottom:14px;"></div>
           <div id="split-bar" style="position:relative; display:flex; height:54px; border-radius:14px; overflow:visible; touch-action:none; user-select:none;">
             <div data-seg="p" style="background:var(--income); border-radius:14px 0 0 14px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; overflow:hidden; white-space:nowrap;"></div>
             <div data-seg="r" style="background:var(--invest); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; overflow:hidden; white-space:nowrap;"></div>
             <div data-seg="a" style="background:var(--expense); border-radius:0 14px 14px 0; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; overflow:hidden; white-space:nowrap;"></div>
-            <div id="split-h1" style="position:absolute; top:-6px; bottom:-6px; width:22px; margin-left:-11px; cursor:ew-resize; display:flex; align-items:center; justify-content:center; z-index:2;"><div style="width:8px; height:100%; border-radius:4px; background:#fff; border:2px solid rgba(0,0,0,.35); box-shadow:0 1px 4px rgba(0,0,0,.3);"></div></div>
-            <div id="split-h2" style="position:absolute; top:-6px; bottom:-6px; width:22px; margin-left:-11px; cursor:ew-resize; display:flex; align-items:center; justify-content:center; z-index:2;"><div style="width:8px; height:100%; border-radius:4px; background:#fff; border:2px solid rgba(0,0,0,.35); box-shadow:0 1px 4px rgba(0,0,0,.3);"></div></div>
+            <div id="split-h1" style="position:absolute; top:0; bottom:0; width:20px; margin-left:-10px; cursor:ew-resize; touch-action:none; display:flex; align-items:center; justify-content:center; z-index:2;"><div class="split-knob"></div></div>
+            <div id="split-h2" style="position:absolute; top:0; bottom:0; width:20px; margin-left:-10px; cursor:ew-resize; touch-action:none; display:flex; align-items:center; justify-content:center; z-index:2;"><div class="split-knob"></div></div>
           </div>
-          <div class="micro" style="margin-top:10px;">Arrasta as duas pegas brancas para decidir quanto vai para cada destino.</div>
         </div>
         <div class="pct-slider-group" style="display:none;">
           <div class="pct-slider-row">
@@ -1680,7 +1751,7 @@
           </div>
         </div>
         <div id="cred-allocation-breakdown" style="margin-top:4px;"></div>
-        <div class="set-grid">
+        <div class="set-grid" data-feat="credito">
           <div class="set-tile">
             <div class="set-ic">🎄</div>
             <div class="set-body">
@@ -2183,6 +2254,20 @@
         <p class="helptext" style="margin:10px 0 0;">Passo a passo detalhado, regras do Firestore e resolução de problemas no PDF.</p>
       </div>
 
+    
+      <div class="card" id="cfg-feat-card">
+        <div class="card-title">Os teus extras</div>
+        <p class="micro" style="margin-top:-6px;">Painel, Receitas &amp; Despesas e Configuração &amp; Guia estão sempre disponíveis. As outras são opcionais e só valem para ti.</p>
+        <div id="cfg-feat-list"></div>
+        <div style="margin-top:10px;"><button type="button" class="btn secondary" id="cfg-show-welcome">Ver introdução da app</button></div>
+      </div>
+      <div class="card" id="cfg-data-card">
+        <div class="card-title">Os teus dados</div>
+        <p class="helptext" style="margin-top:-6px;">Apaga todos os dados guardados.</p>
+        <div class="cfg-data-btns">
+          <button type="button" class="btn secondary" data-proxy="btn-reset" style="color:var(--expense);">Repor todos os dados</button>
+        </div>
+      </div>
     </section>
 
   </main>
@@ -2379,6 +2464,53 @@
     <button type="button" class="btn" id="qk-add" style="width:100%; margin-top:16px; height:48px;">Adicionar</button>
   </div>
 </div>
+<div class="modal-overlay" id="feat-modal"><div class="modal-box" style="max-width:460px;">
+  <h3 id="feat-modal-t" style="margin:0 0 4px;">Escolhe os teus extras</h3>
+  <p class="micro" id="feat-modal-s" style="margin:0 0 10px;">Liga só o que queres usar. O que estiver desligado fica escondido e não entra nas contas.</p>
+  <div id="feat-modal-list"></div>
+  <div class="modal-actions"><button type="button" class="btn" id="feat-modal-ok">Feito</button></div>
+</div></div>
+<div class="modal-overlay" id="welcome-modal"><div class="modal-box" style="max-width:520px;">
+  <h3 style="margin:0 0 6px;">Bem-vindo(a) 👋</h3>
+  <p class="micro" style="margin:0 0 10px;">Um resumo rápido de como isto funciona:</p>
+  <ul class="wl-list">
+    <li><b>Painel</b> — o retrato do mês: quanto entrou, quanto gastaste, quanto podes gastar e poupar.</li>
+    <li><b>Receitas &amp; Despesas</b> — onde registas tudo o que acontece. Quando recebes o salário, carrega em <b>Já recebi: Salário</b> (pode ser de uma vez ou em duas fases).</li>
+    <li><b>Configuração &amp; Guia</b> — nomes, orçamento, cópias de segurança e este guia.</li>
+    <li><b>Extras opcionais</b> — Transferências, Despesas Futuras, Projeções, Crédito Habitação, Investimentos e Painéis Solares. Cada pessoa escolhe as suas; o que estiver desligado fica escondido e não entra nas contas. Podes mudar quando quiseres em <b>Configuração &amp; Guia</b> ou em <b>＋ Extras</b> no menu.</li>
+  </ul>
+  <div class="modal-actions wl-actions"><button type="button" class="btn secondary" id="welcome-read">Só li, está bem assim</button><button type="button" class="btn" id="welcome-choose">Escolher extras agora</button></div>
+</div></div>
+<div class="modal-overlay" id="salphase-modal">
+  <div class="modal-box" style="max-width:420px; width:100%;">
+    <div id="sp-step1">
+      <div class="modal-title">Vais receber o salário de uma vez?</div>
+      <div class="modal-body">Se vier em duas tranches, a app acompanha cada fase separadamente.</div>
+      <div class="modal-actions" style="flex-direction:column; gap:10px;">
+        <button class="btn" id="sp-yes" style="width:100%;">Sim, tudo de uma vez</button>
+        <button class="btn secondary" id="sp-no" style="width:100%;">Não, em duas fases</button>
+        <button class="btn secondary" id="sp-cancel1" style="width:100%; color:var(--expense);">Cancelar</button>
+      </div>
+    </div>
+    <div id="sp-step2" style="display:none;">
+      <div class="modal-title">Salário fase 1</div>
+      <div class="field"><label>Quanto caiu na CGD nesta fase (€)</label><input type="number" id="sp-amount" step="0.01" min="0" inputmode="decimal" placeholder="0,00"></div>
+      <button class="btn" id="sp-go" style="width:100%; margin-top:16px; height:48px;">Confirmar fase 1</button>
+      <button class="btn secondary" id="sp-cancel2" style="width:100%; margin-top:8px; color:var(--expense);">Cancelar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="ph2-modal">
+  <div class="modal-box" style="max-width:420px; width:100%;">
+    <div class="modal-title">Salário fase 2</div>
+    <div class="field"><label>Caiu na CGD como salário (€)</label><input type="number" id="ph2-cgd" step="0.01" min="0" inputmode="decimal" placeholder="0,00"></div>
+    <div class="field" style="margin-top:12px;"><label>Transfiro para o ActivoBank (€)</label><input type="number" id="ph2-transf" step="0.01" min="0" inputmode="decimal" placeholder="0,00"></div>
+    <p class="micro" id="ph2-diff" style="margin-top:10px;"></p>
+    <button class="btn" id="ph2-ok" style="width:100%; margin-top:14px; height:48px;">Confirmar fase 2</button>
+    <button class="btn secondary" id="ph2-undo" style="width:100%; margin-top:8px; display:none;">Anular fase 2</button>
+    <button class="btn secondary" id="ph2-cancel" style="width:100%; margin-top:8px; color:var(--expense);">Cancelar</button>
+  </div>
+</div>
 <div class="modal-overlay" id="info-modal">
   <div class="modal-box" style="max-width:480px; width:100%; max-height:84vh; overflow:auto;">
     <div class="modal-title" id="info-modal-title"></div>
@@ -2407,6 +2539,29 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="reset-modal-pw">
+  <div class="modal-box">
+    <div class="modal-title">Confirma a tua password</div>
+    <div class="modal-body">Escreve a password da tua conta para continuares.
+      <div class="field" style="margin-top:12px;"><input type="password" id="reset-pw" autocomplete="current-password" placeholder="Password"></div>
+      <p id="reset-pw-err" class="micro" style="color:var(--expense); margin-top:8px; display:none;"></p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="reset-pw-no">Cancelar</button>
+      <button class="btn danger" id="reset-pw-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="reset-modal-3">
+  <div class="modal-box">
+    <div class="modal-title">Agora não há volta a dar</div>
+    <div class="modal-body">Vais apagar <strong>todos os dados</strong>. Não há forma de os recuperar.</div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="reset-no-3">Não</button>
+      <button class="btn danger" id="reset-yes-3">Sim</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="congrats-modal">
   <div class="modal-box">
     <div class="modal-title">🎉 Parabéns!</div>
@@ -2866,6 +3021,8 @@ function defaultState(){
       templateId: null,
       checked: {},
       transferred: false,
+      phased: false,
+      phase2: null,
       previousSnapshot: null
     },
     mortgage: { principalInicial: 0, dataInicio: '', rate: 0, installment: 0, baseAfonso: 0, baseLeonor: 0, pctPoupanca: 70, pctProdutos: 10, pctAmortizacao: 20, pctAnnualBonus: 0, idadeAfonso: 0, idadeLeonor: 0, startMonth: '2027-01', payer: 'afonso', houseValue: 0 },
@@ -3229,7 +3386,7 @@ function migrateReceivableCycles(merged){
     const startDate = confirmed['Salário'];
     if(!startDate) return;
     const salaryDates = Array.from(new Set((merged.entries||[])
-      .filter(e => e.type === 'receita' && e.owner === owner && e.category === 'Salário' && e.date < startDate)
+      .filter(e => e.type === 'receita' && e.owner === owner && e.category === 'Salário' && !e.salaryPhase2 && e.date < startDate)
       .map(e => e.date))).sort();
     const prevStart = salaryDates.length ? salaryDates[salaryDates.length-1] : '2000-01-01';
     const legacy = (merged.receivableStatus||{})[owner] || {};
@@ -3410,7 +3567,7 @@ function computeBalancesAtDate(dateCutoff){
 // fica em aberto (isOngoing) até à próxima confirmação, e o fim é "hoje".
 function computeAfonsoPayCycles(){
   const salaryDates = state.entries
-    .filter(e => e.owner === 'afonso' && e.type === 'receita' && e.category === 'Salário')
+    .filter(e => e.owner === 'afonso' && e.type === 'receita' && e.category === 'Salário' && !e.salaryPhase2)
     .map(e => e.date)
     .sort();
   if(salaryDates.length === 0) return [];
@@ -3597,10 +3754,14 @@ function computeActualPersonalSpend(owner, mKey){
 /* ======================= SAVINGS ADVICE ======================= */
 const LAGGED_INCOME_CATEGORIES = new Set(['Salário','Ajuda']);
 function findCategoryEntries(owner, category, mKey){
-  return state.entries.filter(e => e.type==='receita' && e.owner===owner && e.category===category && e.date.slice(0,7)===mKey);
+  return state.entries.filter(e => e.type==='receita' && e.owner===owner && e.category===category && !e.salaryPhase2 && e.date.slice(0,7)===mKey);
 }
 let salaryPromptShownFor = new Set();
 function resolveCategoryForOwnerMonth(owner, category, mKey){
+  const extra = category === 'Salário' ? state.entries.filter(e => e.salaryPhase2 && e.type==='receita' && e.owner===owner && e.date.slice(0,7)===mKey).reduce((t,e)=> t + (Number(e.amount)||0), 0) : 0;
+  return _resolveCategoryForOwnerMonth(owner, category, mKey) + extra;
+}
+function _resolveCategoryForOwnerMonth(owner, category, mKey){
   const candidates = findCategoryEntries(owner, category, mKey);
   if(candidates.length === 0) return 0;
   if(candidates.length === 1) return Number(candidates[0].amount)||0;
@@ -4165,7 +4326,7 @@ let dailyDay = null;
 function computeCycleList(){
   const today = todayISO();
   const starts = new Set();
-  state.entries.forEach(e=>{ if(e.type==='receita' && e.category==='Salário' && e.owner==='afonso' && e.date<=today) starts.add(e.date); });
+  state.entries.forEach(e=>{ if(e.type==='receita' && e.category==='Salário' && !e.salaryPhase2 && e.owner==='afonso' && e.date<=today) starts.add(e.date); });
   const cur = computeCycleStart('afonso'); if(cur) starts.add(cur);
   const arr = Array.from(starts).sort();
   if(arr.length === 0) arr.push(monthKey(new Date()) + '-01');
@@ -4368,8 +4529,8 @@ function renderSavingsComparison(owner){
 }
 function renderNetWorth(){
   const container = document.getElementById('networth-content');
-  const houseValue = Number(state.mortgage.houseValue)||0;
-  const hasLoan = (state.mortgage.principalInicial||0) > 0 && (state.mortgage.installment||0) > 0;
+  const houseValue = featOn('credito') ? (Number(state.mortgage.houseValue)||0) : 0;
+  const hasLoan = hasLoanCfg();
   const debt = hasLoan ? computeCurrentMortgageDebt() : 0;
   const liquidity = householdTotal(currentBalances());
   if(houseValue <= 0 && !hasLoan){
@@ -4659,6 +4820,58 @@ function computeCgdRemainder(){
   return Math.max(0, (Number(state.cgd.salaryAmount)||0) - sumItems);
 }
 let cgdPanelOpen = false;
+function cgdCancelSalary(silent){
+    const snap = state.cgd.previousSnapshot;
+    if(!silent) snapUndo();
+    if(!snap){
+      if(state.cgd.transferEntryId) state.entries = state.entries.filter(x=>x.id !== state.cgd.transferEntryId);
+      if(state.cgd.phase2 && state.cgd.phase2.entryId) state.entries = state.entries.filter(x=>x.id !== state.cgd.phase2.entryId);
+      state.cgd.transferEntryId = null; state.cgd.transferred = false; state.cgd.phased = false; state.cgd.phase2 = null;
+      state.cgd.salaryAmount = 0; state.cgd.month = null; state.cgd.checked = {};
+      const prev = state.entries.filter(e=>e.type==='receita' && e.owner==='afonso' && e.category==='Salário' && !e.salaryPhase2).map(e=>e.date).sort().pop();
+      const lic = state.settings.lastIncomeConfirmedDate.afonso;
+      if(prev) Object.keys(lic).forEach(c=>{ lic[c] = prev; });
+      if(!silent){ saveState(); renderAll(); showToast('Lançamento do salário cancelado.', true); }
+      return true;
+    }
+    if(state.cgd.transferEntryId) state.entries = state.entries.filter(x=>x.id !== state.cgd.transferEntryId);
+    state.cgd.transferEntryId = null;
+    state.cgd.salaryAmount = snap.salaryAmount;
+    state.cgd.templateId = snap.templateId;
+    state.cgd.month = snap.month;
+    state.cgd.checked = snap.checked;
+    state.cgd.transferred = snap.transferred;
+    if(state.cgd.phase2 && state.cgd.phase2.entryId) state.entries = state.entries.filter(x=>x.id !== state.cgd.phase2.entryId);
+    state.cgd.phased = !!snap.phased; state.cgd.phase2 = snap.phase2 || null;
+    state.settings.lastIncomeConfirmedDate.afonso = snap.lastIncomeConfirmedDate;
+    if(snap.receivableCycle) state.receivableCycles.afonso = snap.receivableCycle;
+    state.cgd.previousSnapshot = null;
+    if(!silent){ saveState(); renderAll(); showToast('Lançamento do salário cancelado — voltaste ao ciclo anterior.', true); }
+    return true;
+}
+function cgdEntryRemoved(entry){
+  if(entry.confirmUndo && entry.type === 'receita'){
+    const cur = (state.settings.lastIncomeConfirmedDate[entry.owner] || {})[entry.category];
+    if(cur === entry.date){
+      state.settings.lastIncomeConfirmedDate[entry.owner] = entry.confirmUndo.lic;
+      if(entry.confirmUndo.rc) state.receivableCycles[entry.owner] = entry.confirmUndo.rc;
+    }
+  }
+  if(entry.type !== 'receita' || entry.owner !== 'afonso') return;
+  const cgdActive = state.cgd.salaryAmount > 0 && state.cgd.month === monthKey(new Date(entry.date + 'T12:00:00'));
+  const isTransfer = entry.id === state.cgd.transferEntryId || (cgdActive && entry.category === 'Salário' && !entry.salaryPhase2 && (entry.generated || state.cgd.transferred));
+  if(isTransfer){
+    state.cgd.transferred = false; state.cgd.transferEntryId = null;
+    if(!cgdCancelSalary(true)){
+      state.cgd.salaryAmount = 0; state.cgd.month = null; state.cgd.phased = false; state.cgd.phase2 = null;
+      const prev = state.entries.filter(e=>e.type==='receita' && e.owner==='afonso' && e.category==='Salário' && !e.salaryPhase2 && e.id!==entry.id).map(e=>e.date).sort().pop();
+      const lic = state.settings.lastIncomeConfirmedDate.afonso;
+      if(prev) Object.keys(lic).forEach(c=>{ lic[c] = prev; });
+    }
+  }
+  const p2 = state.cgd.phase2;
+  if(p2 && (p2.entryId === entry.id)) state.cgd.phase2 = null;
+}
 function renderCgdPanel(){
   const container = document.getElementById('afonso-cgd-panel');
   if(!container) return;
@@ -4681,24 +4894,26 @@ function renderCgdPanel(){
     ? `<div class="cgd-row"><span class="cgd-t">💶 <strong>Caixa Geral de Depósitos</strong> <span class="micro">conta só para o salário</span></span>
          <button class="btn small" style="background:var(--income); color:#FFFFFF;" data-cgd-salario title="Confirma quando o salário cair na CGD: o checklist reinicia-se e começa um novo ciclo.">Já recebi: Salário</button></div>`
     : `<details class="cgd-d" ${cgdPanelOpen ? 'open' : ''}>
-         <summary><span class="cgd-t">✓ <strong>Salário recebido na CGD</strong></span><span class="micro cgd-sum">${doneNote}</span></summary>
+         <summary><span class="cgd-t">✓ <strong>${state.cgd.phased ? 'Salário fase 1 recebido na CGD' : 'Salário recebido na CGD'}</strong></span><span class="micro cgd-sum">${doneNote}</span></summary>
          <div class="cgd-body">
-         <div class="allowance-row" style="align-items:center; gap:8px;"><span style="flex:1;">Salário recebido</span><input type="number" data-cgd-salary value="${state.cgd.salaryAmount}" step="0.01" min="0" style="width:110px; text-align:right; font-family:var(--font-mono); font-size:13px; color:var(--income);"><span style="width:14px; text-align:center;">€</span></div>
-         ${state.cgd.previousSnapshot ? `<button class="icon-btn" data-cgd-undo-salario style="margin-bottom:8px;">↺ Desfazer "Já recebi: Salário"</button>` : ''}
-         <p class="helptext" style="margin-top:-2px; margin-bottom:10px;">Marca cada saída à medida que a pagas na realidade — é só para acompanhares, não afeta nenhum cálculo. Os valores são editáveis e ficam guardados para os próximos meses.</p>
+         <div class="cgd-title">Salário de ${monthLabel(state.cgd.month || mKey)}</div>
+         <div class="allowance-row cgd-sal" style="align-items:center; gap:8px;"><span style="flex:1; display:flex; align-items:center; gap:6px;">Recebido <p class="helptext" >Marca cada saída à medida que a pagas na realidade — é só para acompanhares, não afeta nenhum cálculo. Os valores são editáveis e ficam guardados para os próximos meses.</p></span><input type="number" data-cgd-salary value="${state.cgd.salaryAmount}" step="0.01" min="0" style="width:110px; text-align:right; font-family:var(--font-mono); font-size:13px; color:var(--income);"><span style="width:14px; text-align:center;">€</span></div>
          ${itemsHtml}
          <hr style="border:none; border-top:1px solid var(--border); margin:12px 0;">
-         <div class="allowance-row total" style="color:var(--savings);"><span>Sobra para transferir para o ActivoBank</span><span class="num">${fmtMoney(remainder)}</span></div>
          ${state.cgd.transferred
            ? `<div class="warn-ok" style="margin-top:10px;">✓ Já transferiste este mês — o botão volta a ficar disponível quando confirmares o salário do mês seguinte.</div>`
            : `<button class="btn small" style="margin-top:10px;" data-cgd-transfer>➜ Transferir ${fmtMoney(remainder)} para o ActivoBank</button>`
          }
+         <button type="button" class="btn secondary cgd-close" data-cgd-close>Fechar</button>
+         ${true ? `<button type="button" class="btn secondary cgd-cancel" data-cgd-undo-salario>${state.cgd.phased ? 'Cancelar lançamento do salário (fase 1' + (state.cgd.phase2 ? ' e 2' : '') + ')' : 'Cancelar lançamento do salário'}</button>` : ''}
          </div>
        </details>`;
   const cgdDet = container.querySelector('details.cgd-d');
-  if(cgdDet) cgdDet.addEventListener('toggle', ()=>{ cgdPanelOpen = cgdDet.open; });
+  if(cgdDet){ cgdDet.addEventListener('toggle', ()=>{ cgdPanelOpen = cgdDet.open; });
+    cgdDet.addEventListener('click', ev=>{ if(ev.target === cgdDet) cgdDet.open = false; });
+    const cl = cgdDet.querySelector('[data-cgd-close]'); if(cl) cl.addEventListener('click', ()=>{ cgdDet.open = false; }); }
   const btnSalario = container.querySelector('[data-cgd-salario]');
-  if(btnSalario) btnSalario.addEventListener('click', ()=>{
+  const doConfirm = (phasedAmount)=>{
     const runConfirm = (mode)=>{
       const clickDate = todayISO();
       const prevClick = state.settings.lastIncomeConfirmedDate.afonso['Salário'] || null;
@@ -4710,15 +4925,18 @@ function renderCgdPanel(){
         month: state.cgd.month,
         checked: { ...state.cgd.checked },
         transferred: state.cgd.transferred,
+        phased: state.cgd.phased, phase2: state.cgd.phase2 ? { ...state.cgd.phase2 } : null,
         lastIncomeConfirmedDate: { ...state.settings.lastIncomeConfirmedDate.afonso },
         receivableCycle: JSON.parse(JSON.stringify(state.receivableCycles.afonso)),
       };
       const tpl = state.recurring.find(t => t.active && t.kind==='receita' && t.owner==='afonso' && t.category==='Salário');
-      state.cgd.salaryAmount = tpl ? templateAmountForMonth(tpl, mKey) : 0;
+      state.cgd.salaryAmount = (phasedAmount != null) ? phasedAmount : (tpl ? templateAmountForMonth(tpl, mKey) : 0);
+      state.cgd.phased = (phasedAmount != null);
+      state.cgd.phase2 = null;
       state.cgd.templateId = tpl ? tpl.id : null;
       state.cgd.month = mKey;
       state.cgd.checked = {};
-      state.cgd.transferred = false;
+      state.cgd.transferred = false; state.cgd.transferEntryId = null;
       // Um novo salário = um novo ciclo. Avança a data de confirmação de TODAS as categorias de
       // receita do Afonso para hoje, para "Gastos fixos", "Gasto pessoal" e "Deves colocar nas
       // poupanças" recomeçarem com o ciclo novo.
@@ -4730,6 +4948,7 @@ function renderCgdPanel(){
       startReceivableCycle('afonso', clickDate, prevClick, mode);
       const owed = cycleTotal(state.receivableCycles.afonso.current);
       saveState();
+      cgdPanelOpen = true;
       renderAll();
       showToast('Salário confirmado na CGD — novo ciclo iniciado.' + (owed > 0.005 ? ` ${OWNER_LABEL.leonor} deve-te ${fmtMoney(owed)}.` : ''));
     };
@@ -4738,23 +4957,14 @@ function renderCgdPanel(){
     } else {
       runConfirm('replace');
     }
+  };
+  window.__cgdConfirm = doConfirm;
+  if(btnSalario) btnSalario.addEventListener('click', ()=>{
+    document.getElementById('sp-step1').style.display = ''; document.getElementById('sp-step2').style.display = 'none';
+    document.getElementById('salphase-modal').classList.add('show');
   });
   const btnUndoSalario = container.querySelector('[data-cgd-undo-salario]');
-  if(btnUndoSalario) btnUndoSalario.addEventListener('click', ()=>{
-    const snap = state.cgd.previousSnapshot;
-    if(!snap) return;
-    state.cgd.salaryAmount = snap.salaryAmount;
-    state.cgd.templateId = snap.templateId;
-    state.cgd.month = snap.month;
-    state.cgd.checked = snap.checked;
-    state.cgd.transferred = snap.transferred;
-    state.settings.lastIncomeConfirmedDate.afonso = snap.lastIncomeConfirmedDate;
-    if(snap.receivableCycle) state.receivableCycles.afonso = snap.receivableCycle;
-    state.cgd.previousSnapshot = null;
-    saveState();
-    renderAll();
-    showToast('Confirmação do salário desfeita — voltaste ao ciclo anterior.');
-  });
+  if(btnUndoSalario) btnUndoSalario.addEventListener('click', ()=>{ cgdCancelSalary(); });
   const salInp = container.querySelector('[data-cgd-salary]');
   if(salInp) salInp.addEventListener('change', ()=>{
     state.cgd.salaryAmount = Math.max(0, Number(salInp.value)||0);
@@ -4791,7 +5001,7 @@ function renderCgdPanel(){
       essential: false, immediate: true, generated: true, templateId: state.cgd.templateId || undefined
     };
     state.entries.push(entry);
-    state.cgd.transferred = true;
+    state.cgd.transferred = true; state.cgd.transferEntryId = entry.id;
     state.settings.lastIncomeConfirmedDate.afonso['Salário'] = todayISO();
     saveState();
     renderAll();
@@ -5400,6 +5610,7 @@ function renderTransacoes(){
         if(tpl){ tpl.skippedMonths = tpl.skippedMonths || []; const m = entry.date.slice(0,7); if(!tpl.skippedMonths.includes(m)) tpl.skippedMonths.push(m); }
       }
       state.entries = state.entries.filter(e=>e.id !== id);
+      if(entry) cgdEntryRemoved(entry);
       saveState(); renderAll(); showToast('Registo removido.', true);
     });
   });
@@ -5915,8 +6126,8 @@ function computeBackfilledProjection(anchorMonth){
 function computeProjection(monthsAhead){
   const nowKey = monthKey(new Date());
   const bal = currentBalances();
-  const futureQueue = state.future.filter(f => f.account==='poupanca' || f.account==='investimento').map(f=>({...f, applied:false}));
-  const hasLoan = (state.mortgage.principalInicial||0) > 0 && (state.mortgage.installment||0) > 0;
+  const futureQueue = (featOn('futuras') ? state.future : []).filter(f => f.account==='poupanca' || f.account==='investimento').map(f=>({...f, applied:false}));
+  const hasLoan = hasLoanCfg();
   const mortgageMonthlyExtra = hasLoan ? computeMortgageMonthlyExtra() : 0;
   const mortgageAnnualBonus = hasLoan ? computeMortgageMonthlyPoupanca()*12*((state.mortgage.pctAnnualBonus||0)/100) : 0;
   const rates = state.settings.returnRates || { poupanca:0, investimento:0 };
@@ -6055,9 +6266,9 @@ function renderProjecoes(){
           const nowK = monthKey(new Date());
           const ms = [];
           if(fundM) ms.push({ m:fundM, e:'🎯', l:'Fundo de emergência completo' });
-          const exI = state.mortgage && state.mortgage.startMonth ? idxOf(state.mortgage.startMonth) : null;
+          const exI = featOn('credito') && state.mortgage && state.mortgage.startMonth ? idxOf(state.mortgage.startMonth) : null;
           if(exI) ms.push({ m:exI, e:'🏠', l:'Começa a amortização extra do crédito' });
-          state.future.filter(f=>f.month>nowK).forEach(f=>{ const i = idxOf(f.month); if(i) ms.push({ m:i, e:'🛒', l:f.name + ' (' + fmtMoney(f.amount) + ')' }); });
+          (featOn('futuras') ? state.future : []).filter(f=>f.month>nowK).forEach(f=>{ const i = idxOf(f.month); if(i) ms.push({ m:i, e:'🛒', l:f.name + ' (' + fmtMoney(f.amount) + ')' }); });
           const stops = [[0,'Hoje'],[12,'1 ano'],[24,'2 anos'],[60,'5 anos'],[maxM,'10 anos']];
           if(window.__tmM == null) window.__tmM = 0;
           tm.innerHTML = `            <div style="display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;">
@@ -6505,7 +6716,8 @@ function renderProjFutureTimeline(){
 
 function renderProjAssumptions(){
   const container = document.getElementById('proj-assumptions');
-  const hasLoan = (state.mortgage.principalInicial||0) > 0 && (state.mortgage.installment||0) > 0;
+  if(!featOn('credito')){ container.innerHTML=''; return; }
+  const hasLoan = hasLoanCfg();
   if(!hasLoan){
     container.innerHTML = '<div class="empty">Sem crédito habitação configurado, não há nenhum desconto a assumir na projeção da poupança.</div>';
     return;
@@ -6672,7 +6884,7 @@ function ivRateAt(p,d){ ivEnsure(p); let r=null; p.rates.slice().sort((a,b)=>a.f
 function ivProj(p,years){ let b=Number(p.currentValue)||0; const mc=Number(p.monthlyContribution)||0, k=todayISO().slice(0,7);
   for(let m=1;m<=years*12;m++){ const r=Math.pow(1+(Number(ivRateAt(p,addMonths(k,m)+'-01'))||0)/100,1/12)-1; b=(b+mc)*(1+r); } return b; }
 function ivCycleKey(owner){ return computeCycleStart(owner) || computeCycleList().slice(-1)[0].start; }
-function ivPending(){ return state.investmentProducts.filter(p=>{ ivEnsure(p); if(!(Number(p.monthlyContribution)>0)) return false; const k=ivCycleKey(p.owner); return !p.contribs.some(c=>c.cycle===k); }); }
+function ivPending(){ if(!featOn('investimentos')) return []; return state.investmentProducts.filter(p=>{ ivEnsure(p); if(!(Number(p.monthlyContribution)>0)) return false; const k=ivCycleKey(p.owner); return !p.contribs.some(c=>c.cycle===k); }); }
 function ivUpdateDot(){ const b=document.querySelector('.navlist button[data-view="investimentos"]'); if(!b) return; let d=b.querySelector('.nav-dot'); const n=ivPending().length; if(n&&!d){ d=document.createElement('span'); d.className='nav-dot'; b.appendChild(d); } if(d) d.style.display=n?'':'none'; }
 function ivSave(msg){ saveState(); renderAll(); if(msg) showToast(msg); }
 function renderInvNotice(){
@@ -7036,7 +7248,7 @@ function computeCurrentMortgageDebt(){
   return balance;
 }
 function isMortgageActiveNow(){
-  const hasLoan = (state.mortgage.principalInicial||0) > 0 && (state.mortgage.installment||0) > 0;
+  const hasLoan = hasLoanCfg();
   if(!hasLoan) return false;
   return monthKey(new Date()) >= (state.mortgage.startMonth || '0000-00');
 }
@@ -7046,11 +7258,18 @@ function computeOwnerSavingsBase(owner){
   return Number(state.mortgage[owner === 'afonso' ? 'baseAfonso' : 'baseLeonor']) || 0;
 }
 // Modelo direto (não em cascata): Poupança + Produtos + Amortização somam sempre 100% do total.
+// Com o Crédito Habitação desligado, a fatia da amortização desaparece e Poupança + Produtos
+// ficam com os 100% (na mesma proporção que tinham).
+function effPcts(){
+  const p = state.mortgage.pctPoupanca||0, r = state.mortgage.pctProdutos||0, a = state.mortgage.pctAmortizacao||0;
+  if(featOn('credito')) return { p, r, a };
+  const t = p + r;
+  return t > 0 ? { p: p/t*100, r: r/t*100, a: 0 } : { p: 100, r: 0, a: 0 };
+}
 function computeOwnerAllocation(owner){
   const base = computeOwnerSavingsBase(owner);
-  const pctPoupanca = state.mortgage.pctPoupanca||0;
-  const pctProdutos = state.mortgage.pctProdutos||0;
-  const pctAmortizacao = state.mortgage.pctAmortizacao||0;
+  const eff = effPcts();
+  const pctPoupanca = eff.p, pctProdutos = eff.r, pctAmortizacao = eff.a;
   const poupanca = base * (pctPoupanca/100);
   const produtos = base * (pctProdutos/100);
   const amortizacao = base * (pctAmortizacao/100);
@@ -7168,9 +7387,9 @@ function renderCreditoAllocationBreakdown(){
       <div style="display:flex; height:8px; border-radius:4px; overflow:hidden; gap:2px;">${parts.map(x=>`<div style="width:${(x.v/sum*100).toFixed(1)}%; background:${x.col};"></div>`).join('')}</div>
       <div style="display:flex; justify-content:space-between; gap:8px; font-size:12px; margin-top:6px; color:var(--text-muted);">${parts.map(x=>`<span>${x.name} <strong class="money-blur" style="color:var(--text);">${fmtMoney(x.v)}</strong></span>`).join('')}</div></div>`;
   };
-  html += `<div style="display:flex; gap:12px; flex-wrap:wrap;">${card('Poupança','var(--income)','poupanca',totals.poupanca)}${card('Produtos','var(--invest)','produtos',totals.produtos)}${card('Amortização do crédito','var(--expense)','amortizacao',totals.amortizacao)}</div>`;
+  html += `<div style="display:flex; gap:12px; flex-wrap:wrap;">${card('Poupança','var(--income)','poupanca',totals.poupanca)}${card('Produtos','var(--invest)','produtos',totals.produtos)}${featOn('credito') ? card('Amortização do crédito','var(--expense)','amortizacao',totals.amortizacao) : ''}</div>`;
   const active = isMortgageActiveNow();
-  html += `<div style="margin-top:14px;"><span style="display:inline-block; padding:4px 12px; border-radius:999px; font-size:12px; background:${active?'rgba(58,167,109,.15)':'rgba(224,160,48,.18)'};">${active ? '✓ A ser aplicada desde ' + monthLabel(state.mortgage.startMonth || '0000-00') : '⏳ Ainda não aplicada · começa em ' + monthLabel(state.mortgage.startMonth || '0000-00')}</span></div>`;
+  if(featOn('credito')) html += `<div style="margin-top:14px;"><span style="display:inline-block; padding:4px 12px; border-radius:999px; font-size:12px; background:${active?'rgba(58,167,109,.15)':'rgba(224,160,48,.18)'};">${active ? '✓ A ser aplicada desde ' + monthLabel(state.mortgage.startMonth || '0000-00') : '⏳ Ainda não aplicada · começa em ' + monthLabel(state.mortgage.startMonth || '0000-00')}</span></div>`;
   container.innerHTML = html;
 }
 
@@ -7571,6 +7790,14 @@ function renderQCards(owner){
   let html = '';
   if(owner==='afonso' && !(state.cgd.month === mKey && state.cgd.salaryAmount > 0)){
     html += `<div class="qbanner"><button type="button" class="btn" data-kpi-salario>Já recebi: Salário</button><span>Ainda não confirmaste o salário deste mês.</span></div>`;
+  } else if(owner==='afonso' && state.cgd.phased && state.cgd.month === mKey){
+    const ck = '<svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:6px;vertical-align:-3px;"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+    const p2 = state.cgd.phase2;
+    html += `<div class="qbanner"><button type="button" class="btn ph-btn done" data-kpi-cgd>${ck}Salário fase 1</button><button type="button" class="btn ph-btn ${p2 ? 'done' : ''}" data-ph2>${p2 ? ck : ''}Salário fase 2</button></div>`;
+  }
+  else if(owner==='afonso' && state.cgd.month === mKey && state.cgd.salaryAmount > 0){
+    const ck2 = '<svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:6px;vertical-align:-3px;"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+    html += `<div class="qbanner"><button type="button" class="btn ph-btn done" data-kpi-cgd>${ck2}Salário recebido</button></div>`;
   }
   html += `<div class="qcard" role="button" style="cursor:default"><div class="q-q">Quanto posso gastar?</div><div class="q-v money-blur ${left<0?'neg':''}">${fmtMoney(Math.max(0,left))}</div><div class="q-s">${a.budget>0 ? 'de '+fmtMoney(a.budget)+' · já gastaste '+fmtMoney(spent) : 'define o teu orçamento mais abaixo'}</div></div>`;
   html += `<button type="button" class="qcard" data-qc="saved"><div class="q-q">Quanto já poupei?</div><div class="q-v money-blur">${fmtMoney(a.actualSaved)}</div><div class="q-s">de ${fmtMoney(rec)} recomendados · ver movimentos</div></button>`;
@@ -7624,10 +7851,11 @@ function renderQCards(owner){
   document.addEventListener('click', ev=>{
     const t = ev.target; if(!t.classList || !t.classList.contains('modal-overlay')) return;
     if(t.id==='entry-modal'){ closeEntryModal(); return; }
+    if(t.id==='salphase-modal'||t.id==='ph2-modal'){ t.classList.remove('show'); return; }
     if(t.id==='info-modal'||t.id==='quick-modal'){ t.classList.remove('show'); return; }
     const c = t.querySelector('.modal-actions .btn.secondary'); if(c) c.click();
   });
-  document.addEventListener('keydown', ev=>{ if(ev.key==='Escape'){ const o=document.querySelector('.modal-overlay.show'); if(o){ if(o.id==='entry-modal') closeEntryModal(); else if(o.id==='info-modal'||o.id==='quick-modal') o.classList.remove('show'); else { const c=o.querySelector('.modal-actions .btn.secondary'); if(c) c.click(); } } } });
+  document.addEventListener('keydown', ev=>{ if(ev.key==='Escape'){ const o=document.querySelector('.modal-overlay.show'); if(o){ if(o.id==='entry-modal') closeEntryModal(); else if(o.id==='salphase-modal'||o.id==='ph2-modal') o.classList.remove('show'); else if(o.id==='info-modal'||o.id==='quick-modal') o.classList.remove('show'); else { const c=o.querySelector('.modal-actions .btn.secondary'); if(c) c.click(); } } } });
 })();
 function renderDashKpis(){
   let f = null; try{ f = computeHouseholdEmergencyFund(); }catch(e){}
@@ -7673,6 +7901,7 @@ function fitDonutLabels(){
 }
 window.addEventListener('resize', ()=>{ try{ fitDonutLabels(); }catch(e){} });
 function renderAll(){
+  try{ applyFeatures(); renderFeatUIs(); }catch(e){ console.error(e); }
   applyOwnerNames();
   updateTopbar();
   if(typeof applyBlurState === 'function') applyBlurState();
@@ -7725,7 +7954,8 @@ function applyResponsiveTableCards(){
 })();
 /* ======================= NAVIGATION ======================= */
 function switchView(view){
-  document.querySelectorAll('.navlist button').forEach(b=>b.classList.toggle('active', b.getAttribute('data-view')===view));
+  if(!featViewOn(view)) view = 'dashboard';
+  document.querySelectorAll('.navlist button[data-view]').forEach(b=>b.classList.toggle('active', b.getAttribute('data-view')===view));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+view).classList.add('active');
   document.getElementById('mobile-nav-select').value = view;
@@ -7733,15 +7963,15 @@ function switchView(view){
   closeMobileMenu();
   window.scrollTo(0,0);
 }
-document.querySelectorAll('.navlist button').forEach(btn=>{
+document.querySelectorAll('.navlist button[data-view]').forEach(btn=>{
   btn.addEventListener('click', ()=> switchView(btn.getAttribute('data-view')));
 });
 document.querySelectorAll('#bottom-nav button').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.go==='__more') openMoreSheet(); else switchView(b.dataset.go); }));
 const MS_ICON={dashboard:`<svg class="ic" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,transacoes:`<svg class="ic" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>`,transferencias:`<svg class="ic" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>`,futuras:`<svg class="ic" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h5"/><path d="M17.5 17.5 16 16.3V14"/><circle cx="16" cy="16" r="6"/></svg>`,projecoes:`<svg class="ic" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`,credito:`<svg class="ic" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>`,investimentos:`<svg class="ic" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg>`,solar:`<svg class="ic" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`,config:`<svg class="ic" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>`};
 function openMoreSheet(){
   const g=document.getElementById('ms-grid'), cur=document.querySelector('.view.active').id.replace('view-','');
-  g.innerHTML=[...document.querySelectorAll('.navlist button')].map(b=>{ const v=b.dataset.view; return `<button type="button" data-v="${v}" class="${v===cur?'on':''}"><i>${MS_ICON[v]||'•'}</i><span>${b.textContent.replace(/^\d+/,'')}</span></button>`; }).join('');
-  g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ closeMoreSheet(); switchView(b.dataset.v); });
+  g.innerHTML=[...document.querySelectorAll('.navlist button[data-view]')].filter(b=>!b.classList.contains('feat-off')).map(b=>{ const v=b.dataset.view; return `<button type="button" data-v="${v}" class="${v===cur?'on':''}"><i>${MS_ICON[v]||'•'}</i><span>${b.textContent.replace(/^\d+/,'')}</span></button>`; }).join('') + (featAllOn() ? '' : `<button type="button" data-feat-add="1" class="ms-feat"><i>＋</i><span>Extras</span></button>`);
+  g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ closeMoreSheet(); if(b.dataset.featAdd) openFeatModal(false); else switchView(b.dataset.v); });
   const sh=document.getElementById('more-sheet'); sh.classList.add('show'); sh.setAttribute('aria-hidden','false');
 }
 function closeMoreSheet(){ const sh=document.getElementById('more-sheet'); sh.classList.remove('show'); sh.setAttribute('aria-hidden','true'); }
@@ -7983,7 +8213,7 @@ document.addEventListener('click', (ev)=>{
   const a = ev.target.closest && ev.target.closest('[data-kpi-salario],[data-kpi-cgd]'); if(!a) return;
   if(a.hasAttribute('data-kpi-salario')){ const b = document.querySelector('#afonso-cgd-panel [data-cgd-salario]'); if(b) b.click(); return; }
   const d = document.querySelector('#afonso-cgd-panel details.cgd-d'); if(!d) return;
-  d.open = !d.open; if(d.open) d.scrollIntoView({behavior:'smooth', block:'nearest'});
+  d.open = !d.open;
 });
 /* ======================= ACERTAR COM O BANCO ======================= */
 function bankSyncAppBalance(owner){ return computeBalancesAtDate(todayISO())[accKey(owner,'corrente')] || 0; }
@@ -8651,7 +8881,7 @@ document.getElementById('cred-save-base').addEventListener('click', ()=>{
 // tinham. Arrastar Produtos ou Amortização troca só entre os dois — a Poupança nunca é tocada por
 // esse arrasto, só quando é ela própria a ser arrastada.
 function updatePctSliderUI(){
-  const p = state.mortgage.pctPoupanca||0, r = state.mortgage.pctProdutos||0, a = state.mortgage.pctAmortizacao||0;
+  const _e = effPcts(); const p = _e.p, r = _e.r, a = _e.a;
   const set = (id, val) => {
     const el = document.getElementById(id);
     el.value = Math.round(val);
@@ -8667,22 +8897,27 @@ function updatePctSliderUI(){
 }
 function updateSplitBar(){
   const bar = document.getElementById('split-bar'); if(!bar) return;
-  const p = Math.round(state.mortgage.pctPoupanca||0), r = Math.round(state.mortgage.pctProdutos||0), a = Math.max(0, 100 - p - r);
+  const _e = effPcts(); const p = Math.round(_e.p), r = Math.round(_e.r), a = Math.max(0, 100 - p - r);
+  const _cr = featOn('credito');
+  { const h2 = document.getElementById('split-h2'); if(h2) h2.style.display = _cr ? '' : 'none'; const sa = bar.querySelector('[data-seg="a"]'); if(sa) sa.style.display = _cr ? 'flex' : 'none'; const sr = bar.querySelector('[data-seg="r"]'); if(sr) sr.style.borderRadius = _cr ? '0' : '0 14px 14px 0'; }
   const segs = { p, r, a }, names = { p:'Poupança', r:'Produtos', a:'Crédito' };
   Object.keys(segs).forEach(k=>{ const el = bar.querySelector('[data-seg="'+k+'"]'); el.style.width = segs[k] + '%'; el.textContent = segs[k] >= 9 ? segs[k] + '%' : ''; el.title = names[k] + ' ' + segs[k] + '%'; });
   document.getElementById('split-h1').style.left = p + '%';
   document.getElementById('split-h2').style.left = (p + r) + '%';
-  document.getElementById('split-sentence').innerHTML = `De cada <strong>100 €</strong> que sobram: <strong style="color:var(--income);">${p} €</strong> para guardar · <strong style="color:var(--invest);">${r} €</strong> para investir · <strong style="color:var(--expense);">${a} €</strong> para o crédito`;
 }
 (function initSplitBar(){
   const bar = document.getElementById('split-bar'); if(!bar) return;
   const pctAt = ev => { const rc = bar.getBoundingClientRect(); return Math.round(Math.min(100, Math.max(0, (ev.clientX - rc.left)/rc.width*100))); };
   const drag = (id, fn) => {
     const h = document.getElementById(id);
-    h.addEventListener('pointerdown', ev=>{ ev.preventDefault(); h.setPointerCapture(ev.pointerId); });
-    h.addEventListener('pointermove', ev=>{ if(!h.hasPointerCapture(ev.pointerId)) return; fn(pctAt(ev)); });
+    let off = 0;
+    h.addEventListener('pointerdown', ev=>{ ev.preventDefault(); h.setPointerCapture(ev.pointerId);
+      const rc = bar.getBoundingClientRect(), hr = h.getBoundingClientRect();
+      off = (ev.clientX - (hr.left + hr.width/2)) / rc.width * 100; });
+    h.addEventListener('pointermove', ev=>{ if(!h.hasPointerCapture(ev.pointerId)) return; const rc = bar.getBoundingClientRect(); fn(Math.round(Math.min(100, Math.max(0, (ev.clientX - rc.left)/rc.width*100 - off)))); });
   };
   drag('split-h1', x=>{
+    if(!featOn('credito')){ state.mortgage.pctPoupanca = x; state.mortgage.pctProdutos = 100 - x; state.mortgage.pctAmortizacao = 0; renderCredito(); return; }
     const old = (state.mortgage.pctProdutos||0) + (state.mortgage.pctAmortizacao||0), rem = 100 - x;
     if(old > 0){ state.mortgage.pctProdutos = (state.mortgage.pctProdutos/old)*rem; state.mortgage.pctAmortizacao = (state.mortgage.pctAmortizacao/old)*rem; }
     else { state.mortgage.pctProdutos = rem/2; state.mortgage.pctAmortizacao = rem/2; }
@@ -8860,7 +9095,7 @@ function renderMaxPossibleSavings(){
   // início configurado — antes disso, os valores mostrados nesse cartão ainda não refletem a
   // realidade deste mês, por isso avisamos aqui, mesmo antes deste "teto teórico".
   const noteEl = document.getElementById('calc-max-possible-mortgage-note');
-  const hasLoan = (state.mortgage.principalInicial||0) > 0 && (state.mortgage.installment||0) > 0;
+  const hasLoan = hasLoanCfg();
   noteEl.innerHTML = (hasLoan && !isMortgageActiveNow())
     ? `<p class="helptext" style="margin-top:-2px; color:var(--savings);">Esta divisão ainda não está a ser aplicada — só começa em ${monthLabel(state.mortgage.startMonth || '0000-00')}. Os valores acima são o que vai acontecer a partir dessa data.</p>`
     : '';
@@ -9139,6 +9374,30 @@ document.getElementById('reset-no-2').addEventListener('click', ()=>{
 });
 document.getElementById('reset-yes-2').addEventListener('click', ()=>{
   document.getElementById('reset-modal-2').classList.remove('show');
+  const needPw = !usingLocalOnlyMode && window.firebaseBridge && window.__userKey && window.__userKey !== 'local';
+  if(!needPw){ document.getElementById('reset-modal-3').classList.add('show'); return; }
+  document.getElementById('reset-pw').value = ''; document.getElementById('reset-pw-err').style.display = 'none';
+  document.getElementById('reset-modal-pw').classList.add('show');
+  setTimeout(()=>document.getElementById('reset-pw').focus(), 60);
+});
+document.getElementById('reset-pw-no').addEventListener('click', ()=>{ document.getElementById('reset-modal-pw').classList.remove('show'); });
+(function(){
+  const ok = document.getElementById('reset-pw-ok'), inp = document.getElementById('reset-pw'), err = document.getElementById('reset-pw-err');
+  const go = ()=>{
+    const pw = inp.value; if(!pw){ err.textContent = 'Escreve a password.'; err.style.display = ''; return; }
+    ok.disabled = true;
+    Promise.resolve().then(()=> window.firebaseBridge.signIn(window.__userKey, pw)).then(()=>{
+      ok.disabled = false; inp.value = '';
+      document.getElementById('reset-modal-pw').classList.remove('show');
+      document.getElementById('reset-modal-3').classList.add('show');
+    }).catch(()=>{ ok.disabled = false; err.textContent = 'Password errada.'; err.style.display = ''; inp.select(); });
+  };
+  ok.addEventListener('click', go);
+  inp.addEventListener('keydown', e=>{ if(e.key === 'Enter') go(); });
+})();
+document.getElementById('reset-no-3').addEventListener('click', ()=>{ document.getElementById('reset-modal-3').classList.remove('show'); });
+document.getElementById('reset-yes-3').addEventListener('click', ()=>{
+  document.getElementById('reset-modal-3').classList.remove('show');
   state = defaultState(); saveState(); renderAll(); showToast('Todos os dados foram repostos.');
 });
 
@@ -9270,6 +9529,7 @@ document.getElementById('salario-confirm').addEventListener('click', ()=>{
       category, amount, desc: tpl ? tpl.name : category,
       essential: false, templateId: tpl ? tpl.id : undefined, generated: true, immediate: true
     };
+    entry.confirmUndo = { lic: JSON.parse(JSON.stringify(state.settings.lastIncomeConfirmedDate[owner] || {})), rc: JSON.parse(JSON.stringify((state.receivableCycles || {})[owner] || null)) };
     state.entries.push(entry);
     if(tpl && tpl.skippedMonths){
       tpl.skippedMonths = tpl.skippedMonths.filter(m => m !== mKey);
@@ -9361,6 +9621,113 @@ let toastTimer = null;
   window.addEventListener('scroll', check, {passive:true}); window.addEventListener('resize', check);
   b.addEventListener('click', ()=> window.scrollTo({top:0, behavior:'smooth'}));
 })();
+(function(){
+  document.addEventListener('click', ev=>{ const b = ev.target.closest && ev.target.closest('[data-proxy]'); if(!b) return; const t = document.getElementById(b.getAttribute('data-proxy')); if(t) t.click(); });
+})();
+(function(){
+  const $ = id=>document.getElementById(id);
+  const num = id => { const v = parseFloat(String($(id).value).replace(',','.')); return isNaN(v) ? 0 : v; };
+  $('sp-yes').addEventListener('click', ()=>{ $('salphase-modal').classList.remove('show'); if(window.__cgdConfirm) window.__cgdConfirm(null); });
+  $('sp-no').addEventListener('click', ()=>{ $('sp-step1').style.display='none'; $('sp-step2').style.display=''; $('sp-amount').value=''; setTimeout(()=>$('sp-amount').focus(),60); });
+  $('sp-go').addEventListener('click', ()=>{ const v = num('sp-amount'); if(v<=0){ showToast('Escreve o valor que caiu na CGD.'); return; } $('salphase-modal').classList.remove('show'); if(window.__cgdConfirm) window.__cgdConfirm(v); });
+  function diffTxt(){ const d = Math.round((num('ph2-cgd')-num('ph2-transf'))*100)/100; $('ph2-diff').textContent = d>0.004 ? 'Ficam '+fmtMoney(d)+' na CGD (não contam como disponível).' : (d<-0.004 ? 'Atenção: transferes mais do que o que caiu.' : ''); }
+  $('ph2-cgd').addEventListener('input', ()=>{ if(!$('ph2-transf').dataset.touched) $('ph2-transf').value = $('ph2-cgd').value; diffTxt(); });
+  $('ph2-transf').addEventListener('input', ()=>{ $('ph2-transf').dataset.touched = '1'; diffTxt(); });
+  document.addEventListener('click', ev=>{
+    if(!(ev.target.closest && ev.target.closest('[data-ph2]'))) return;
+    const p = state.cgd.phase2;
+    $('ph2-cgd').value = p ? p.cgd : ''; $('ph2-transf').value = p ? p.transfer : ''; $('ph2-transf').dataset.touched = p ? '1' : '';
+    $('ph2-undo').style.display = p ? '' : 'none'; $('ph2-ok').textContent = p ? 'Guardar alterações' : 'Confirmar fase 2'; diffTxt();
+    $('ph2-modal').classList.add('show'); setTimeout(()=>$('ph2-cgd').focus(),60);
+  });
+  $('ph2-ok').addEventListener('click', ()=>{
+    const cgd = num('ph2-cgd'), tr = num('ph2-transf');
+    if(cgd<=0){ showToast('Escreve o valor que caiu na CGD.'); return; }
+    if(tr<0 || tr>cgd+0.004){ showToast('A transferência não pode ser maior que o salário.'); return; }
+    snapUndo();
+    const old = state.cgd.phase2;
+    if(old && old.entryId) state.entries = state.entries.filter(x=>x.id !== old.entryId);
+    let entryId = null;
+    if(tr > 0.004){
+      const entry = { id: uid(), type:'receita', date: todayISO(), owner:'afonso', category:'Salário', amount: tr, desc:'Salário fase 2 · CGD → ActivoBank', essential:false, immediate:true, generated:true, salaryPhase2:true, templateId: state.cgd.templateId || undefined };
+      state.entries.push(entry); entryId = entry.id;
+    }
+    state.cgd.phase2 = { cgd, transfer: tr, date: todayISO(), entryId };
+    saveState(); $('ph2-modal').classList.remove('show'); renderAll();
+    showToast('Fase 2 registada: +' + fmtMoney(tr) + ' na conta à ordem (ActivoBank).', true);
+  });
+  $('ph2-cancel').addEventListener('click', ()=>$('ph2-modal').classList.remove('show'));
+  $('sp-cancel1').addEventListener('click', ()=>$('salphase-modal').classList.remove('show'));
+  $('sp-cancel2').addEventListener('click', ()=>$('salphase-modal').classList.remove('show'));
+  $('ph2-undo').addEventListener('click', ()=>{
+    const old = state.cgd.phase2; if(!old) return;
+    snapUndo();
+    if(old.entryId) state.entries = state.entries.filter(x=>x.id !== old.entryId);
+    state.cgd.phase2 = null; saveState(); $('ph2-modal').classList.remove('show'); renderAll(); showToast('Fase 2 anulada.', true);
+  });
+})();
+
+/* ======================= FEATURES OPCIONAIS (por pessoa) ======================= */
+const FEAT_LIST=[
+ {k:'transfers',view:'transferencias',name:'Transferências',desc:'Movimentos entre contas (ordem, poupança, investimento).'},
+ {k:'futuras',view:'futuras',name:'Despesas Futuras',desc:'Compras e gastos que já sabes que vêm aí.'},
+ {k:'projecoes',view:'projecoes',name:'Projeções',desc:'Como o teu dinheiro evolui nos próximos meses e anos.'},
+ {k:'credito',view:'credito',name:'Crédito Habitação',desc:'Prestação, amortizações e dívida restante.'},
+ {k:'investimentos',view:'investimentos',name:'Investimentos',desc:'Produtos, rendimentos e contribuições.'},
+ {k:'solar',view:'solar',name:'Painéis Solares',desc:'Produção, vendas e retorno do investimento.'}];
+function curUserKey(){ const k = (usingLocalOnlyMode ? 'local' : (window.__userKey||'local')); return String(k).toLowerCase().replace(/[.#$\/\[\]]/g,'_'); }
+function featHasData(){ return state.entries.length>0 || state.transfers.length>0 || (state.mortgage.principalInicial||0)>0 || state.investmentProducts.length>0 || state.future.length>0; }
+function featOn(k){ const m=(state.settings.features||{})[curUserKey()]; if(m) return !!m[k]; return featHasData(); }
+function featViewOn(view){ const f=FEAT_LIST.find(x=>x.view===view); return !f || featOn(f.k); }
+function featAllOn(){ return FEAT_LIST.every(f=>featOn(f.k)); }
+function hasLoanCfg(){ return featOn('credito') && (state.mortgage.principalInicial||0) > 0 && (state.mortgage.installment||0) > 0; }
+function featStore(){ // fixa as definições desta pessoa (a partir do estado por defeito) antes de editar
+  const s=state.settings; s.features = s.features||{}; const key=curUserKey();
+  if(!s.features[key]){ const o={}; const on=featHasData(); FEAT_LIST.forEach(f=>o[f.k]=on); s.features[key]=o; }
+  return s.features[key];
+}
+function applyFeatures(){
+  FEAT_LIST.forEach(f=>{
+    const on=featOn(f.k);
+    const b=document.querySelector('.navlist button[data-view="'+f.view+'"]'); if(b) b.classList.toggle('feat-off', !on);
+    const o=document.querySelector('#mobile-nav-select option[value="'+f.view+'"]'); if(o){ o.hidden=!on; o.disabled=!on; }
+    document.querySelectorAll('[data-feat="'+f.k+'"]').forEach(el=>el.classList.toggle('feat-hide', !on));
+  });
+  const nf=document.getElementById('nav-feat'); if(nf) nf.classList.toggle('feat-hidden', featAllOn());
+  const act=document.querySelector('.view.active'); if(act && !featViewOn(act.id.replace('view-',''))) switchView('dashboard');
+}
+function featRowsHtml(){
+  const st=(state.settings.features||{})[curUserKey()];
+  return FEAT_LIST.map(f=>`<label class="feat-row"><div class="ft"><b>${f.name}</b><span>${f.desc}</span></div><input type="checkbox" data-fk="${f.k}" ${featOn(f.k)?'checked':''}></label>`).join('');
+}
+function bindFeatRows(box){
+  box.querySelectorAll('input[data-fk]').forEach(inp=>inp.addEventListener('change',()=>{
+    featStore()[inp.dataset.fk] = inp.checked; saveState(); renderAll(); renderFeatUIs();
+  }));
+}
+function renderFeatUIs(){
+  const c=document.getElementById('cfg-feat-list'); if(c){ c.innerHTML=featRowsHtml(); bindFeatRows(c); }
+  const m=document.getElementById('feat-modal-list'); if(m && document.getElementById('feat-modal').classList.contains('show')){ m.innerHTML=featRowsHtml(); bindFeatRows(m); }
+}
+function openFeatModal(fromWelcome){
+  featStore();
+  const m=document.getElementById('feat-modal-list'); m.innerHTML=featRowsHtml(); bindFeatRows(m);
+  document.getElementById('feat-modal').classList.add('show');
+}
+function markWelcomeSeen(){ featStore(); const s=state.settings; s.welcomeSeen=s.welcomeSeen||{}; s.welcomeSeen[curUserKey()]=true; saveState(); renderAll(); }
+function maybeShowWelcome(force){
+  if(!force && ((state.settings.welcomeSeen||{})[curUserKey()])) return;
+  document.getElementById('welcome-modal').classList.add('show');
+}
+(function(){
+  const $=id=>document.getElementById(id);
+  $('nav-feat').addEventListener('click',()=>{ closeMobileMenu(); openFeatModal(false); });
+  $('feat-modal-ok').addEventListener('click',()=>$('feat-modal').classList.remove('show'));
+  $('welcome-read').addEventListener('click',()=>{ $('welcome-modal').classList.remove('show'); markWelcomeSeen(); });
+  $('welcome-choose').addEventListener('click',()=>{ $('welcome-modal').classList.remove('show'); markWelcomeSeen(); openFeatModal(true); });
+  $('cfg-show-welcome').addEventListener('click',()=>maybeShowWelcome(true));
+  $('feat-modal').addEventListener('click',e=>{ if(e.target.id==='feat-modal') $('feat-modal').classList.remove('show'); });
+})();
 let undoSnap = null;
 function snapUndo(){ try{ undoSnap = JSON.stringify(state); }catch(e){ undoSnap = null; } }
 function undoLast(){
@@ -9412,6 +9779,7 @@ function subscribeToFirestore(){
     initTopLevelFieldsFromState();
     renderAll();
     isApplyingRemoteSnapshot = false;
+    if(!window.__welcomeChecked){ window.__welcomeChecked = true; maybeShowWelcome(); }
   }, function(err){
     console.error('Erro de sincronização com o Firestore.', err);
     showToast('Erro a sincronizar com a nuvem: ' + err.message);
@@ -9422,6 +9790,7 @@ function initFirebaseAuthFlow(){
   const bridge = window.firebaseBridge;
   bridge.onAuthChanged(function(user){
     if(user){
+      window.__userKey = user.email || user.uid || 'local';
       showApp();
       subscribeToFirestore();
     } else {
@@ -9465,6 +9834,7 @@ document.getElementById('login-local-only').addEventListener('click', (ev)=>{
   initTopLevelFieldsFromState();
   renderAll();
   showApp();
+  if(!window.__welcomeChecked){ window.__welcomeChecked = true; maybeShowWelcome(); }
 });
 
 // O SDK do Firebase carrega como módulo (script type="module"), que pode terminar depois deste
