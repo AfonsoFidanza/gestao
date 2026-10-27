@@ -426,6 +426,14 @@
   .cr-chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
   .cr-chip{ background:rgba(255,255,255,.7); border:1px solid rgba(128,128,128,.22); border-radius:999px; padding:7px 13px; font-size:13px; color:#0f1b2d; }
   .cr-chip b{ font-weight:700; }
+  .sv-chip{ cursor:pointer; }
+  .sv-row{ display:grid; grid-template-columns:1fr auto auto auto; gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid rgba(128,128,128,.18); }
+  .sv-r{ color:#6b7a90; font-size:13px; } .sv-a{ font-weight:700; text-align:right; }
+  .sv-x{ padding:3px 9px; font-size:12px; }
+  .sv-tot{ display:flex; justify-content:space-between; gap:10px; padding:10px 0; font-size:13px; }
+  .sv-add{ display:grid; grid-template-columns:1.4fr 1fr 1fr auto; gap:8px; margin-top:6px; }
+  .sv-add input{ min-width:0; width:100%; }
+  @media(max-width:560px){ .sv-add{ grid-template-columns:1fr 1fr; } }
   .cr-cmp{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
   .cr-col{ border-radius:16px; padding:18px 20px; border:1px solid rgba(128,128,128,.2); }
   .cr-col.sem{ background:rgba(176,74,62,.07); } .cr-col.com{ background:rgba(31,138,92,.09); border-color:rgba(31,138,92,.35); }
@@ -1626,9 +1634,9 @@ input[type="date"]::-webkit-calendar-picker-indicator{ margin:0 0 0 4px; flex:no
         <div class="card-title">Nova transferência</div>
         <form id="form-transferencia">
           <div class="xgrid xg-top">
-            <div class="field"><label>De</label><select id="x-de"></select></div>
+            <div class="field"><label>De</label><select id="x-de"></select><select id="x-de-sub" style="display:none;margin-top:6px;"></select></div>
             <div class="xarrow">para</div>
-            <div class="field"><label>Para</label><select id="x-para"></select></div>
+            <div class="field"><label>Para</label><select id="x-para"></select><select id="x-para-sub" style="display:none;margin-top:6px;"></select></div>
           </div>
           <div class="xgrid xg-bottom">
             <div class="field"><label>Valor (€)</label><input type="number" id="x-valor" step="0.01" min="0" required></div>
@@ -3090,6 +3098,7 @@ function defaultState(){
     transfers: [],
     future: [],
     investmentProducts: [],
+    savingsSubs: [],
     recurring: [],
     customCategories: { receita:[], despesa:[], futuras:[] },
     customCategoryType: {},
@@ -3185,6 +3194,7 @@ function loadFromParsed(parsed){
     if(cgdNames[it.id] && (/^Débito \d$/.test(it.name) || it.name==='Gastos para manutenção de conta' || it.name==='Manutenção de conta' || it.name==='Quotas Sporting')) it.name = cgdNames[it.id];
   });
   merged.investmentProducts = merged.investmentProducts || [];
+  merged.savingsSubs = Array.isArray(parsed.savingsSubs) ? parsed.savingsSubs : [];
   merged.customCategories = Object.assign({receita:[],despesa:[],futuras:[]}, parsed.customCategories||{});
   merged.customCategoryType = Object.assign({}, parsed.customCategoryType||{});
   merged.customCategoryGroup = Object.assign({}, parsed.customCategoryGroup||{});
@@ -3468,7 +3478,7 @@ function confirmReceivablePaid(owner, amountPaid){
   const remaining = cycleTotal(cycle);
   if(remaining <= 0.005) return null;
   const total = (amountPaid > 0.004) ? amountPaid : remaining;
-  const partial = total < remaining - 0.005;
+  const partial = false; // o valor indicado é sempre o valor final: nada fica por receber
   const parts = [];
   if(cycleGroupTotal(cycle,'fixas') > 0.005) parts.push(RECEIVABLE_GROUPS.fixas.label);
   if(cycleGroupTotal(cycle,'variaveis') > 0.005) parts.push(RECEIVABLE_GROUPS.variaveis.label);
@@ -3480,8 +3490,8 @@ function confirmReceivablePaid(owner, amountPaid){
     reembolsoMonth: cycle.months[cycle.months.length-1], reembolsoCycleId: cycle.id, immediate: true
   };
   state.entries.push(entry);
-  cycle.paidSoFar = (cycle.paidSoFar || 0) + total;
-  cycle.payments = (cycle.payments || []).concat([{ id:entry.id, amount:total }]);
+  cycle.paidSoFar = (cycle.paidSoFar || 0) + remaining; // liquida o ciclo todo, seja qual for o valor recebido
+  cycle.payments = (cycle.payments || []).concat([{ id:entry.id, amount:remaining }]);
   if(!partial){ cycle.paid = true; cycle.paidEntryId = entry.id; cycle.paidDate = entry.date; }
   return entry;
 }
@@ -4182,7 +4192,7 @@ function buildCompositionBar(segments){
 }
 function buildCompositionLegend(segments){
   const tot = segments.reduce((a,x)=>a+Math.max(0,x.value),0) || 1;
-  return segments.map(x => `<span class="cr-chip"><span class="cr-top"><i style="background:${x.color};"></i><span class="cr-name">${x.label}</span><em class="cr-pct">${Math.round(Math.max(0,x.value)/tot*100)}%</em></span><b class="money-blur">${fmtMoney(x.value)}</b></span>`).join('');
+  return segments.map(x => `<span class="cr-chip${x.sv?' sv-chip':''}"${x.sv?` data-sv-owner="${x.sv}" title="Ver contas"`:''}><span class="cr-top"><i style="background:${x.color};"></i><span class="cr-name">${x.label}</span><em class="cr-pct">${Math.round(Math.max(0,x.value)/tot*100)}%</em></span><b class="money-blur">${fmtMoney(x.value)}</b></span>`).join('');
 }
 function buildDateAlignedLineChart(series, opts){
   opts = opts || {};
@@ -4776,7 +4786,7 @@ function renderDashboard(){
   document.getElementById('hero-afonso-total').textContent = fmtMoney(ownerTotal(bal,'afonso'));
   const afonsoAccounts = [
     { label:'Conta à ordem', value: bal.afonso_corrente, color:'#e34948' },
-    { label:'Poupança', value: bal.afonso_poupanca, color:'#eda100' },
+    { label:'Poupança', value: bal.afonso_poupanca, color:'#eda100', sv:'afonso' },
     { label:'Investimentos', value: bal.afonso_investimento, color:'#2a78d6' },
   ];
   document.getElementById('afonso-hero-legend').innerHTML = buildCompositionLegend(afonsoAccounts);
@@ -4785,7 +4795,7 @@ function renderDashboard(){
   document.getElementById('hero-leonor-total').textContent = fmtMoney(ownerTotal(bal,'leonor'));
   const leonorAccounts = [
     { label:'Conta à ordem', value: bal.leonor_corrente, color:'#e34948' },
-    { label:'Poupança', value: bal.leonor_poupanca, color:'#eda100' },
+    { label:'Poupança', value: bal.leonor_poupanca, color:'#eda100', sv:'leonor' },
     { label:'Investimentos', value: bal.leonor_investimento, color:'#2a78d6' },
   ];
   document.getElementById('leonor-hero-legend').innerHTML = buildCompositionLegend(leonorAccounts);
@@ -4911,7 +4921,7 @@ function buildReceivableCardHtmlBase(owner){
     ${groupHtml}
     ${cycle.paidSoFar > 0.005 ? `<div class="allowance-row"><span>Já pago</span><span class="num">-${fmtMoney(cycle.paidSoFar)}</span></div>` : ''}
     <div class="allowance-row total"><span>Em falta</span><span class="num gold">${fmtMoney(total)}</span></div>
-    <p class="helptext" style="margin:8px 0 10px 0;">O que não for pago acumula no mesmo saldo, ciclo após ciclo, até a pessoa pagar. Podes confirmar um pagamento parcial.</p>
+    <div style="height:8px;"></div>
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
       <span class="micro" style="margin-right:4px;">Já pagou?</span>
       <button class="btn small secondary" data-receivable-no="${owner}">Não</button>
@@ -4983,20 +4993,21 @@ function renderReceivable(owner){
       const rem = cycleTotal(state.receivableCycles[o].current);
       const ov = document.createElement('div');
       ov.className = 'modal-overlay show';
-      ov.innerHTML = `<div class="modal-box"><h3 style="margin-top:0;">Quanto foi transferido?</h3>
-        <p class="helptext">Em falta: ${fmtMoney(rem)}. Se for menos, o resto fica por receber.</p>
-        <input type="number" step="any" min="0" id="rcv-amt" value="${rem.toFixed(2)}" style="width:100%;">
-        <div class="modal-actions"><button class="btn secondary" data-x>Cancelar</button><button class="btn" data-ok>Confirmar</button></div></div>`;
+      ov.innerHTML = `<div class="modal-box" style="max-width:380px;"><div class="modal-title">Quanto recebeste de ${OWNER_LABEL[o==='afonso'?'leonor':'afonso']}?</div>
+        <div class="modal-body"><div style="position:relative;"><input type="number" inputmode="decimal" step="any" min="0" id="rcv-amt" value="${rem.toFixed(2)}" style="width:100%;font-size:26px;font-weight:700;padding:14px 44px 14px 16px;border-radius:14px;"><span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:20px;color:#6b7a90;">€</span></div></div>
+        <div class="modal-actions"><button class="btn secondary" data-x>Cancelar</button><button class="btn secondary" data-zero>Já não devo nada</button><button class="btn" data-ok style="background:#2a78d6;color:#fff;">Confirmar</button></div></div>`;
       document.body.appendChild(ov);
       ov.querySelector('[data-x]').onclick = () => ov.remove();
+      ov.querySelector('[data-zero]').onclick = () => { ov.querySelector('#rcv-amt').value = '0'; ov.querySelector('[data-ok]').click(); };
       ov.querySelector('[data-ok]').onclick = () => {
         const v = parseFloat(String(ov.querySelector('#rcv-amt').value).replace(',','.'));
-        if(!(v > 0)) return;
+        if(!(v >= 0)){ showToast('Indica o valor recebido.'); return; }
+        if(v < 0.005){ const cy = state.receivableCycles[o].current; if(cy){ cy.paidSoFar = (cy.paidSoFar||0) + cycleTotal(cy); cy.paid = true; cy.paidDate = todayISO(); } ov.remove(); saveState(); renderAll(); showToast('Ciclo fechado sem registar receita.'); return; }
         const entry = confirmReceivablePaid(o, v);
         ov.remove();
         if(!entry) return;
         saveState(); renderAll();
-        showToast(v < rem - 0.005 ? 'Pagamento parcial registado — o resto fica por receber.' : 'Pagamento confirmado — registado como receita na conta à ordem.');
+        showToast('Pagamento registado na conta à ordem.');
       };
     });
   });
@@ -6471,6 +6482,52 @@ function computeMonthlySavingsContribution(owner, toType, isFirstMonth){
 // "pura", independente do que realmente aconteceu — para comparares genuinamente "o que estava
 // previsto" com "o que aconteceu de verdade", em vez de comparares a realidade com ela própria
 // (o que dava sempre 0% de diferença, sem nunca mostrar discrepância nenhuma).
+function savingsBreakdown(owner){
+  const bal = currentBalances(), total = Number(bal[accKey(owner,'poupanca')])||0;
+  const gr = (state.settings.returnRates||{}).poupanca||0;
+  const rows = [];
+  (state.investmentProducts||[]).filter(p=>p.owner===owner && p.inSavings && p.type==='Depósito a prazo').forEach(p=>
+    rows.push({ id:'p:'+p.id, name:p.name, bank:p.bank, amount:Number(p.currentValue)||0, rate:Number(ivRateAt(p,todayISO()))||0, kind:'prod' }));
+  (state.savingsSubs||[]).filter(x=>x.owner===owner).forEach(x=>
+    rows.push({ id:x.id, name:x.name, bank:x.bank, amount:Number(x.amount)||0, rate:Number(x.rate)||0, kind:'sub' }));
+  (state.transfers||[]).forEach(t=>{
+    if(t.date > todayISO()) return;
+    rows.forEach(r=>{
+      if(t.fromSub===r.id && t.fromOwner===owner && t.fromType==='poupanca') r.amount -= Number(t.amount)||0;
+      if(t.toSub===r.id && t.toOwner===owner && t.toType==='poupanca') r.amount += Number(t.amount)||0;
+    });
+  });
+  const used = rows.reduce((a,r)=>a+r.amount,0);
+  const rest = Math.max(0, total - used);
+  if(rest > 0.004 || !rows.length) rows.push({ id:'rest', name:'Restante', amount:rest, rate:gr, kind:'rest' });
+  return { rows, total: Math.max(total, used) };
+}
+function poupRate(owner){
+  const b = savingsBreakdown(owner);
+  if(b.total <= 0) return (state.settings.returnRates||{}).poupanca||0;
+  return b.rows.reduce((a,r)=>a+r.amount*r.rate,0)/b.total;
+}
+function openSavSubsModal(owner){
+  let m = document.getElementById('savings-modal');
+  if(!m){ m = document.createElement('div'); m.className='modal-overlay'; m.id='savings-modal'; document.body.appendChild(m);
+    m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('show'); }); }
+  const b = savingsBreakdown(owner), nm = OWNER_LABEL[owner];
+  const row = r => `<div class="sv-row"><div class="sv-n"><b>${escapeHtml(r.name)}</b>${r.bank?` <span class="muted">${escapeHtml(r.bank)}</span>`:''}</div><div class="sv-r">${(Math.round(r.rate*100)/100).toString().replace('.',',')}%</div><div class="sv-a money-blur">${fmtMoney(r.amount)}</div>${r.kind==='sub'?`<button class="btn secondary sv-x" data-del="${r.id}">Apagar</button>`:'<span></span>'}</div>`;
+  m.innerHTML = `<div class="modal-box"><div class="modal-title">Poupança de ${escapeHtml(nm)}</div>
+    <div class="modal-body"><div class="sv-list">${b.rows.map(row).join('')}</div>
+    <div class="sv-tot"><span>Total</span><b class="money-blur">${fmtMoney(b.total)}</b><span>Taxa média ${(Math.round(poupRate(owner)*100)/100).toString().replace('.',',')}%</span></div>
+    <div class="sv-add"><input id="sv-name" class="set-pill" placeholder="Conta"><input id="sv-amt" class="set-pill" type="number" step="0.01" placeholder="Valor"><input id="sv-rate" class="set-pill" type="number" step="0.01" placeholder="Taxa %"><button class="btn" id="sv-save">Adicionar</button></div></div>
+    <div class="modal-actions"><button class="btn secondary" id="sv-close">Fechar</button></div></div>`;
+  m.classList.add('show');
+  m.querySelector('#sv-close').onclick = ()=>m.classList.remove('show');
+  m.querySelectorAll('[data-del]').forEach(bt=>bt.onclick=()=>{ state.savingsSubs = state.savingsSubs.filter(x=>x.id!==bt.dataset.del); saveState(); renderAll(); openSavSubsModal(owner); });
+  m.querySelector('#sv-save').onclick = ()=>{
+    const name = m.querySelector('#sv-name').value.trim(), amount = parseFloat(m.querySelector('#sv-amt').value), rate = parseFloat(m.querySelector('#sv-rate').value);
+    if(!name || !(amount>=0) || !(rate>=0)) return;
+    state.savingsSubs.push({ id:uid(), owner, name, amount, rate }); saveState(); renderAll(); openSavSubsModal(owner);
+  };
+}
+window.openSavSubsModal = openSavSubsModal;
 function computeBackfilledProjection(anchorMonth){
   const nowKey = monthKey(new Date());
   const realByMonthLocal = {};
@@ -6537,7 +6594,7 @@ function computeProjection(monthsAhead){
         }
         cur[accKey(owner,toType)] += contrib;
       });
-      cur[accKey(owner,'poupanca')] *= (1 + monthlyRatePoupanca);
+      cur[accKey(owner,'poupanca')] *= (1 + Math.pow(1 + poupRate(owner)/100, 1/12) - 1);
       const pOwn = prodList.filter(x=>x.owner===owner);
       const pBefore = pOwn.reduce((t,x)=>t+x.v,0);
       pOwn.forEach(x=>{ let ra=0; try{ ra=Number(ivRateAt(x.p, key+'-01'))||0; }catch(e){ ra=Number(x.p.annualRate)||0; } x.v *= Math.pow(1+ra/100,1/12); });
@@ -8958,6 +9015,7 @@ document.getElementById('form-override').addEventListener('submit', (ev)=>{
 /* ======================= FORM HANDLERS: TRANSFERÊNCIAS ======================= */
 document.getElementById('x-data').value = todayISO();
 populateTransferSelects();
+setTimeout(()=>{ try{ refreshXSubs(); }catch(e){} },0);
 
 document.getElementById('btn-save-initial').addEventListener('click', ()=>{
   ALL_ACCOUNT_KEYS.forEach(k=>{
@@ -8967,10 +9025,26 @@ document.getElementById('btn-save-initial').addEventListener('click', ()=>{
   saveState(); renderAll(); showToast('Saldos iniciais guardados.');
 });
 
+function refreshXSubs(){
+  [['x-de','x-de-sub'],['x-para','x-para-sub']].forEach(([a,b])=>{
+    const sel=document.getElementById(a), sub=document.getElementById(b); if(!sel||!sub) return;
+    const [o,t]=(sel.value||'').split('_');
+    if(t!=='poupanca'){ sub.style.display='none'; sub.innerHTML=''; return; }
+    const rows=savingsBreakdown(o).rows;
+    if(rows.length<2 && !(state.savingsSubs||[]).some(x=>x.owner===o)){ sub.style.display='none'; sub.innerHTML=''; return; }
+    const keep=sub.value;
+    sub.innerHTML=rows.map(r=>`<option value="${r.id}">${escapeHtml(r.name)} - ${fmtMoney(r.amount)}</option>`).join('');
+    if(rows.some(r=>r.id===keep)) sub.value=keep;
+    sub.style.display='';
+  });
+}
+['x-de','x-para'].forEach(id=>document.getElementById(id).addEventListener('change', refreshXSubs));
+['x-de-sub','x-para-sub'].forEach(id=>document.getElementById(id).addEventListener('change', ()=>updateXPreview()));
 function updateXPreview(){
   const el = document.getElementById('x-preview'); if(!el) return;
   const de = document.getElementById('x-de'), para = document.getElementById('x-para'), v = parseFloat(document.getElementById('x-valor').value);
   if(!de.value || !para.value) { el.textContent = ''; return; }
+  { const a=document.getElementById('x-de-sub'), b=document.getElementById('x-para-sub'); if(de.value===para.value && a.style.display!=='none' && a.value!==b.value){ el.innerHTML='Mover <strong>'+(isNaN(v)?'':fmtMoney(v))+'</strong> entre contas de poupança.'; return; } }
   if(de.value === para.value){ el.textContent = 'Escolhe contas diferentes em "De" e "Para".'; return; }
   const dt = de.options[de.selectedIndex].text, pt = para.options[para.selectedIndex].text;
   el.innerHTML = isNaN(v) || v<=0 ? `De <strong>${dt}</strong> para <strong>${pt}</strong> — indica o valor.` : `Vais mover <strong>${fmtMoney(v)}</strong> de <strong>${dt}</strong> para <strong>${pt}</strong>.`;
@@ -8983,17 +9057,20 @@ document.getElementById('form-transferencia').addEventListener('submit', (ev)=>{
   const para = document.getElementById('x-para').value;
   const valor = parseFloat(document.getElementById('x-valor').value);
   const desc = document.getElementById('x-desc').value.trim();
-  if(de === para){ showToast('A conta de origem e destino têm de ser diferentes.'); return; }
+  const dsub = document.getElementById('x-de-sub'), psub = document.getElementById('x-para-sub');
+  const fromSub = dsub.style.display!=='none' ? dsub.value : undefined, toSub = psub.style.display!=='none' ? psub.value : undefined;
+  if(de === para && !(fromSub && toSub && fromSub!==toSub)){ showToast('A conta de origem e destino têm de ser diferentes.'); return; }
   if(!data || isNaN(valor) || valor <= 0){ showToast('Verifica a data e o valor introduzidos.'); return; }
   const [fromOwner, fromType] = de.split('_');
   const [toOwner, toType] = para.split('_');
   const transfer = { id: uid(), date:data, fromOwner, fromType, toOwner, toType, amount:valor, desc };
+  if(fromSub) transfer.fromSub = fromSub; if(toSub) transfer.toSub = toSub;
   state.transfers.push(transfer);
   saveState();
   document.getElementById('x-valor').value = '';
   document.getElementById('x-desc').value = '';
   document.getElementById('x-data').value = todayISO();
-  renderAll();
+  renderAll(); refreshXSubs();
   showToast('Transferência adicionada.');
   checkSavingsCongrats(transfer);
 });
@@ -10534,6 +10611,9 @@ window.GUIA_PDF_B64="JVBERi0xLjQKJdPr6eEKMSAwIG9iago8PC9UaXRsZSAoZ3VpYS5odG1sKQo
 (function(){
   function dl(){ try{ var bin=atob(window.GUIA_PDF_B64), n=bin.length, u=new Uint8Array(n); for(var i=0;i<n;i++)u[i]=bin.charCodeAt(i);
     var url=URL.createObjectURL(new Blob([u],{type:'application/pdf'})), a=document.createElement('a'); a.href=url; a.download='Guia_Gestao_Financeira.pdf'; document.body.appendChild(a); a.click(); setTimeout(function(){URL.revokeObjectURL(url);a.remove();},4000);}catch(e){alert('Não foi possível gerar o PDF.');} }
+  document.addEventListener('click', e=>{
+    const c = e.target.closest('[data-sv-owner]'); if(c){ openSavSubsModal(c.dataset.svOwner); }
+  }, true);
   document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.closest('#gd-pdf,#gd-exp,#gd-imp'); if(!t)return;
     if(t.id==='gd-pdf')dl(); else if(t.id==='gd-exp'){var b=document.getElementById('btn-export'); b&&b.click();} else {var b2=document.getElementById('btn-import'); b2&&b2.click();} });
 })();
