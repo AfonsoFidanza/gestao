@@ -255,6 +255,24 @@
     }
     table td .row-actions{ justify-content:flex-end; }
   }
+  @media (max-width:640px){
+    #tabela-transacoes table tr{ display:flex; flex-wrap:wrap; align-items:center; column-gap:8px; row-gap:2px; padding:10px 12px; margin-bottom:8px; }
+    #tabela-transacoes table tr td{ display:block; width:auto; padding:0; border:0; text-align:left; }
+    #tabela-transacoes table td[data-label]::before{ display:none; }
+    #tabela-transacoes td:nth-child(3), #tabela-transacoes td:nth-child(5):has(.micro){ display:none; }
+    #tabela-transacoes td:nth-child(4){ order:1; flex:1 1 55%; min-width:0; font-size:15px; font-weight:600; }
+    #tabela-transacoes td:nth-child(7){ order:2; flex:none; text-align:right; font-size:16px; font-weight:700; }
+    #tabela-transacoes td:nth-child(6){ order:3; flex:0 0 100%; font-size:13px; color:var(--text-dim); }
+    #tabela-transacoes td:nth-child(6):empty{ display:none; }
+    #tabela-transacoes td:nth-child(1){ order:4; font-size:12px; color:var(--text-dim); }
+    #tabela-transacoes td:nth-child(2){ order:5; font-size:12px; }
+    #tabela-transacoes td:nth-child(5){ order:6; font-size:12px; }
+    #tabela-transacoes td:nth-child(2):has(.micro){ order:8; flex:0 0 100%; }
+    #tabela-transacoes td:nth-child(2):has(.micro) .tag{ margin-right:6px; }
+    #tabela-transacoes td:nth-child(2):has(.micro) .micro{ display:inline; }
+    #tabela-transacoes td:nth-child(8){ order:7; margin-left:auto; }
+    #tabela-transacoes .row-actions .icon-btn{ padding:4px 8px; font-size:14px; }
+  }
   .empty{ text-align:center; padding:36px 10px; color:var(--text-dim); font-size:13px; }
 
   .chart-svg{ width:100%; height:auto; display:block; }
@@ -5751,11 +5769,11 @@ function renderLastEntry(){
   if(!list.length){ el.style.display='none'; return; }
   let last = list[0];
   list.forEach(e=>{ const a=String(e.id), b=String(last.id); if(a.length>b.length || (a.length===b.length && a>b)) last=e; });
-  const inc = last.kind === 'receita';
+  const inc = last.type === 'receita';
   const who = (typeof OWNER_LABEL!=='undefined' && OWNER_LABEL[last.owner]) ? OWNER_LABEL[last.owner] : (last.owner==='conjunto'?'Conjunto':'');
   const d = String(last.date||'').split('-').reverse().join('/');
   const esc = t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  el.innerHTML = `<div class="le-dot ${inc?'inc':'exp'}"></div><div class="le-main"><div class="le-k">Último registo</div><div class="le-t">${esc(last.desc || last.bt || last.category || '—')}</div><div class="le-s">${esc(last.category||'')}${who?' · '+esc(who):''}${d?' · '+d:''}</div></div><div class="le-v ${inc?'inc':'exp'}">${inc?'+':'−'}${fmtMoney(last.amount)}</div>`;
+  el.innerHTML = `<div class="le-dot ${inc?'inc':'exp'}"></div><div class="le-main"><div class="le-k">Último registo</div><div class="le-t">${esc(last.desc || last.bt || last.category || '—')}</div><div class="le-s">${esc(last.category||'')}${who?' · '+esc(who):''}${d?' · '+d:''}</div></div><div class="le-v ${inc?'inc':'exp'}">${fmtMoney(last.amount)}</div>`;
   el.style.display='flex';
 }
 function renderTransacoes(){
@@ -5799,7 +5817,7 @@ function renderTransacoes(){
       <td>${ACCOUNT_TYPE_LABEL[t.fromType]} <span style="opacity:.6;">para</span> ${ACCOUNT_TYPE_LABEL[t.toType]}${t.templateId ? ' <span class="tag">recorrente</span>' : ''}${t.auto ? ' <span class="tag">automático</span>' : ''}</td>
       <td><span class="micro">—</span></td>
       <td>${escapeHtml(t.desc||'')}</td>
-      <td class="num" style="color:var(--text-dim)">${sign} ${fmtMoney(t.amount)}${rb ? `<div class="micro" style="color:var(--text-dim); font-weight:400;" title="Saldo da conta à ordem de ${OWNER_LABEL[rb.who]} depois deste movimento">${fmtMoney(rb.value)}</div>` : ''}</td>
+      <td class="num" style="color:var(--text-dim)">${fmtMoney(t.amount)}${rb ? `<div class="micro" style="color:var(--text-dim); font-weight:400;" title="Saldo da conta à ordem de ${OWNER_LABEL[rb.who]} depois deste movimento">${fmtMoney(rb.value)}</div>` : ''}</td>
       <td><div class="row-actions"><button class="icon-btn" data-del-xfer="${t.id}">✕</button></div></td>
     </tr>`;
   };
@@ -5822,7 +5840,7 @@ function renderTransacoes(){
       <td>${e.category}${(!isIncome && e.essential) ? ' <span class="tag">essencial</span>' : ''}${e.generated ? ' <span class="tag">recorrente</span>' : ''}${(!isIncome && e.excludeFromBudget) ? ' <span class="tag" title="Não conta para o orçamento pessoal">fora do orçamento</span>' : ''}</td>
       <td>${e.banco ? `<span class="tag">${e.banco}</span>` : '<span class="micro">—</span>'}</td>
       <td>${escapeHtml(e.desc||'')}</td>
-      <td class="num" style="color:${isIncome?'var(--income)':'var(--expense)'}">${isIncome?'+':'-'} ${fmtMoney(e.amount)}${runBal[e.id] ? `<div class="micro" style="color:var(--text-dim); font-weight:400;" title="Saldo da conta à ordem de ${OWNER_LABEL[runBal[e.id].who]} depois deste movimento">${fmtMoney(runBal[e.id].value)}</div>` : ''}</td>
+      <td class="num" style="color:${isIncome?'var(--income)':'var(--expense)'}">${fmtMoney(e.amount)}${runBal[e.id] ? `<div class="micro" style="color:var(--text-dim); font-weight:400;" title="Saldo da conta à ordem de ${OWNER_LABEL[runBal[e.id].who]} depois deste movimento">${fmtMoney(runBal[e.id].value)}</div>` : ''}</td>
       <td><div class="row-actions"><button class="icon-btn" data-edit-entry="${e.id}">✎</button><button class="icon-btn" data-del-entry="${e.id}">✕</button></div></td>
     </tr>`;
   };
