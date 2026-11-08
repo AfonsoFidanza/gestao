@@ -2717,6 +2717,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{ margin:0 0 0 4px; flex:no
     <div class="modal-title">Salário fase 2</div>
     <div class="field"><label>Caiu na CGD como salário (€)</label><input type="number" id="ph2-cgd" step="0.01" min="0" inputmode="decimal" placeholder="0,00"></div>
     <div class="field" style="margin-top:12px;"><label>Transfiro para o ActivoBank (€)</label><input type="number" id="ph2-transf" step="0.01" min="0" inputmode="decimal" placeholder="0,00"></div>
+    <div class="field" style="margin-top:12px;"><label>Data em que recebeste</label><input type="date" id="ph2-date"></div>
     <p class="micro" id="ph2-diff" style="margin-top:10px;"></p>
     <button class="btn" id="ph2-ok" style="width:100%; margin-top:14px; height:48px;">Confirmar fase 2</button>
     <button class="btn secondary" id="ph2-undo" style="width:100%; margin-top:8px; display:none;">Anular fase 2</button>
@@ -8723,9 +8724,10 @@ function renderQCards(owner){
   const owed = receivableOwed(owner,'fixas') + receivableOwed(owner,'variaveis');
   const dual = !document.body.classList.contains('single-user');
   let html = '';
-  if(owner==='afonso' && !(state.cgd.month === mKey && state.cgd.salaryAmount > 0)){
+  const ph2Pending = owner==='afonso' && state.cgd.phased && !state.cgd.phase2 && state.cgd.salaryAmount > 0;
+  if(owner==='afonso' && !ph2Pending && !(state.cgd.month === mKey && state.cgd.salaryAmount > 0)){
     html += `<div class="qbanner"><button type="button" class="btn" data-kpi-salario>Já recebi: Salário</button><span>Ainda não confirmaste o salário deste mês.</span></div>`;
-  } else if(owner==='afonso' && state.cgd.phased && state.cgd.month === mKey){
+  } else if(owner==='afonso' && state.cgd.phased && (state.cgd.month === mKey || ph2Pending)){
     const ck = '<svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:6px;vertical-align:-3px;"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
     const p2 = state.cgd.phase2;
     html += `<div class="qbanner"><button type="button" class="btn ph-btn done" data-kpi-cgd>${ck}Salário fase 1</button><button type="button" class="btn ph-btn ${p2 ? 'done' : ''}" data-ph2>${p2 ? ck : ''}Salário fase 2</button></div>`;
@@ -10839,10 +10841,11 @@ let toastTimer = null;
     const p = state.cgd.phase2;
     $('ph2-cgd').value = p ? p.cgd : ''; $('ph2-transf').value = p ? p.transfer : ''; $('ph2-transf').dataset.touched = p ? '1' : '';
     $('ph2-undo').style.display = p ? '' : 'none'; $('ph2-ok').textContent = p ? 'Guardar alterações' : 'Confirmar fase 2'; diffTxt();
+    $('ph2-date').value = p && p.date ? p.date : todayISO(); $('ph2-date').max = todayISO();
     $('ph2-modal').classList.add('show'); setTimeout(()=>$('ph2-cgd').focus(),60);
   });
   $('ph2-ok').addEventListener('click', ()=>{
-    const cgd = num('ph2-cgd'), tr = num('ph2-transf');
+    const cgd = num('ph2-cgd'), tr = num('ph2-transf'), pd = $('ph2-date').value || todayISO();
     if(cgd<=0){ showToast('Escreve o valor que caiu na CGD.'); return; }
     if(tr<0 || tr>cgd+0.004){ showToast('A transferência não pode ser maior que o salário.'); return; }
     snapUndo();
@@ -10850,10 +10853,10 @@ let toastTimer = null;
     if(old && old.entryId) state.entries = state.entries.filter(x=>x.id !== old.entryId);
     let entryId = null;
     if(tr > 0.004){
-      const entry = { id: uid(), type:'receita', date: todayISO(), owner:'afonso', category:'Salário', amount: tr, desc:'Salário fase 2 · CGD para ActivoBank', essential:false, immediate:true, generated:true, salaryPhase2:true, templateId: state.cgd.templateId || undefined };
+      const entry = { id: uid(), type:'receita', date: pd, owner:'afonso', category:'Salário', amount: tr, desc:'Salário fase 2 · CGD para ActivoBank', essential:false, immediate:true, generated:true, salaryPhase2:true, templateId: state.cgd.templateId || undefined };
       state.entries.push(entry); entryId = entry.id;
     }
-    state.cgd.phase2 = { cgd, transfer: tr, date: todayISO(), entryId };
+    state.cgd.phase2 = { cgd, transfer: tr, date: pd, entryId };
     saveState(); $('ph2-modal').classList.remove('show'); renderAll();
     showToast('Fase 2 registada: +' + fmtMoney(tr) + ' na conta à ordem (ActivoBank).', true);
   });
