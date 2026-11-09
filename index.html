@@ -6611,6 +6611,7 @@ function savingsBreakdown(owner){
   (state.transfers||[]).forEach(t=>{
     if(t.date > todayISO()) return;
     rows.forEach(r=>{
+      if(r.kind==='prod') return; // o valor do produto já inclui os reforços registados
       if(t.fromSub===r.id && t.fromOwner===owner && t.fromType==='poupanca') r.amount -= Number(t.amount)||0;
       if(t.toSub===r.id && t.toOwner===owner && t.toType==='poupanca') r.amount += Number(t.amount)||0;
     });
@@ -7700,12 +7701,21 @@ function ivEnsure(p){
    }
   }
   if(p.type==='Certificados de Aforro' && p.holdings.some(h=>h.ca)){ caRefresh(p); p.currentValue = ivHSum(p); }
+  if(!Array.isArray(p.reforcos)) p.reforcos=[];
   if(!Array.isArray(p.contribs)) p.contribs=[];
   if(!Array.isArray(p.valueLog)) p.valueLog=[];
   return p;
 }
 function ivRateAt(p,d){ ivEnsure(p); let r=null; p.rates.slice().sort((a,b)=>a.from<b.from?-1:1).forEach(x=>{ if(x.from<=d) r=x.rate; }); return r==null?p.rates.slice().sort((a,b)=>a.from<b.from?-1:1)[0].rate:r; }
-function ivProj(p,years){ let b=Number(p.currentValue)||0; const mc=Number(p.monthlyContribution)||0, k=todayISO().slice(0,7);
+function ivProj(p,years){
+  if(p.type==='Depósito a prazo' && Array.isArray(p.reforcos) && p.reforcos.length){
+    const refs=p.reforcos, sum=refs.reduce((t,r)=>t+(Number(r.amount)||0),0), k0=todayISO().slice(0,7), D=d=>new Date(d+'T00:00:00').getTime(), td=todayISO();
+    let b=Math.max(0,(Number(p.currentValue)||0)-sum); const mc=Number(p.monthlyContribution)||0;
+    for(let m=1;m<=years*12;m++){ const r=Math.pow(1+(Number(ivRateAt(p,addMonths(k0,m)+'-01'))||0)/100,1/12)-1; b=(b+mc)*(1+r); }
+    refs.forEach(r=>{ const days=Math.max(0,(D(td)-D(r.date))/86400000); b+=(Number(r.amount)||0)*Math.pow(1+(Number(r.rate)||0)/100,days/365+years); });
+    return b;
+  }
+  let b=Number(p.currentValue)||0; const mc=Number(p.monthlyContribution)||0, k=todayISO().slice(0,7);
   for(let m=1;m<=years*12;m++){ const r=Math.pow(1+(Number(ivRateAt(p,addMonths(k,m)+'-01'))||0)/100,1/12)-1; b=(b+mc)*(1+r); } return b; }
 function ivCycleKey(owner){ return computeCycleStart(owner) || computeCycleList().slice(-1)[0].start; }
 function ivPending(){ if(!featOn('investimentos')) return []; return state.investmentProducts.filter(p=>{ ivEnsure(p); if(p.type==='Certificados de Aforro' && p.holdings.some(h=>h.ca)) return false; if(!(Number(p.monthlyContribution)>0)) return false; const k=ivCycleKey(p.owner); return !p.contribs.some(c=>c.cycle===k); }); }
@@ -7835,6 +7845,7 @@ function caForm(container,pid,hid){
 }
 function ivHForm(container,pid,hid){
   const p=state.investmentProducts.find(x=>x.id===pid), pop=container.querySelector(`[data-hpop="${pid}"]`); if(!p||!pop) return;
+  if(p.type==='Depósito a prazo') return dpForm(container,pid);
   if(p.type==='Certificados de Aforro') return caForm(container,pid,hid);
   const h=hid?p.holdings.find(x=>x.id===hid):null, cfg=ivHCfg(p.type), un=cfg?cfg[0]:'';
   const f=(lbl,inner)=>`<label class="sim-f"><span>${lbl}</span><span class="set-pill">${inner}</span></label>`;
@@ -7899,7 +7910,29 @@ function caList(p){
   const sum = hs.length ? `<div class="ca-row ca-tot"><div class="ca-top"><b>Total</b></div><div class="ca-sub">juros líquidos +${fmtMoney(tot.n-tot.c)} · brutos +${fmtMoney(tot.g-tot.c)}</div><div class="ca-nums"><div><small>Depositado</small><b>${fmtMoney(tot.c)}</b></div><div><small>Bruto</small><b>${fmtMoney(tot.g)}</b></div><div><small>Líquido</small><b style="color:#1f8a5c">${fmtMoney(tot.n)}</b></div></div></div>` : '';
   return `<div class="iv-hl ca-hl"><div class="iv-hh ca-hh"><span>Subscrições${hs.length?' · '+hs.length:''}</span><button type="button" class="btn secondary" data-hadd="${p.id}">+ Subscrição</button></div>${rows}</div><div class="iv-hpop" data-hpop="${p.id}" style="display:none;"></div>`;
 }
+function dpList(p){
+  const hs=(p.reforcos||[]).slice().sort((a,b)=>a.date<b.date?1:-1), D=d=>new Date(d+'T00:00:00').getTime(), td=todayISO();
+  const rows=hs.map(r=>{ const days=Math.max(0,(D(td)-D(r.date))/86400000), v=(Number(r.amount)||0)*Math.pow(1+(Number(r.rate)||0)/100,days/365);
+    return `<div class="iv-hrow"><div class="iv-hn"><b>Reforço de ${formatDatePT(r.date)}</b><span>${fmtMoney(r.amount)} · taxa ${r.rate}%</span></div><div class="iv-hv"><b>${fmtMoney(v)}</b><span style="color:#1f8a5c">+${fmtMoney(v-(Number(r.amount)||0))}</span></div><button class="icon-btn" data-rdel="${r.id}" title="Remover">✕</button></div>`; }).join('');
+  return `<div class="iv-hl"><div class="iv-hh"><span>Reforços${hs.length?' · '+hs.length:''}</span><button type="button" class="btn secondary" data-hadd="${p.id}">Reforço</button></div>${rows}</div><div class="iv-hpop" data-hpop="${p.id}" style="display:none;"></div>`;
+}
+function dpForm(container,pid){
+  const p=state.investmentProducts.find(x=>x.id===pid), pop=container.querySelector(`[data-hpop="${pid}"]`); if(!p||!pop) return;
+  if(pop.style.display!=='none' && pop.innerHTML){ pop.style.display='none'; pop.innerHTML=''; return; }
+  const f=(lbl,inner)=>`<label class="sim-f"><span>${lbl}</span><span class="set-pill">${inner}</span></label>`;
+  const g=k=>{ const e=pop.querySelector(`[data-hf="${k}"]`); return e?e.value:''; };
+  pop.style.display='';
+  pop.innerHTML=`<div class="sim-fields" style="margin:0;">${f('Quanto reforçaste?','<input type="number" min="0" step="any" data-hf="amt" placeholder="0,00"><b>€</b>')}${f('Quando?',`<input type="date" data-hf="date" value="${todayISO()}" max="${todayISO()}">`)}${f('Taxa anual',`<input type="number" min="0" step="any" data-hf="rate" value="${ivRateAt(p,todayISO())}"><b>%</b>`)}
+    <button type="button" class="btn" data-hsave>Adicionar</button><button type="button" class="btn secondary" data-hcancel>Cancelar</button></div>`;
+  pop.querySelector('[data-hcancel]').onclick=()=>{ pop.style.display='none'; pop.innerHTML=''; };
+  pop.querySelector('[data-hsave]').onclick=()=>{
+    const amt=Math.max(0,parseFloat(g('amt'))||0), date=g('date')||todayISO(), rate=parseFloat(g('rate'));
+    if(!amt||isNaN(rate)){ showToast('Indica quanto e a taxa.'); return; }
+    p.reforcos.push({id:uid(),date,amount:amt,rate}); p.currentValue=(Number(p.currentValue)||0)+amt; p.valueLog.push({date:todayISO(),value:p.currentValue}); ivSave('Reforço registado.');
+  };
+}
 function ivHList(p){
+  if(p.type==='Depósito a prazo'){ ivEnsure(p); return dpList(p); }
   if(p.type==='Certificados de Aforro'){ ivEnsure(p); return caList(p); }
   const hs=p.holdings, cfg=ivHCfg(p.type);
   const rows=hs.map(h=>{ const v=ivHVal(h), g=v-(Number(h.cost)||0), gp=h.cost>0?g/h.cost*100:null;
@@ -8016,6 +8049,7 @@ function renderInvHero(){
 }
 function ivCardAct(p){
   ivEnsure(p); const k=ivCycleKey(p.owner), c=p.contribs.find(x=>x.cycle===k);
+  if(p.type==='Depósito a prazo') return `<button type="button" class="btn secondary" data-ivval="${p.id}">Valor atual</button>`;
   return `<button type="button" class="btn secondary" data-ivreg="${p.id}">${c?(c.amount>0?'✓ '+fmtMoney(c.amount)+' neste ciclo':'✓ Não investi'):'Registar investimento'}</button>${(p.type==='Certificados de Aforro' && p.holdings.some(h=>h.ca)) ? '' : `<button type="button" class="btn secondary" data-ivval="${p.id}">Valor atual</button>`}`;
 }
 function ivPop(container,id,mode){
@@ -8065,6 +8099,7 @@ function renderInvGroup(container, products, isDPg){
   container.querySelectorAll('[data-hadd]').forEach(b=>b.addEventListener('click',()=>ivHForm(container,b.dataset.hadd,null)));
   container.querySelectorAll('[data-hedit]').forEach(b=>b.addEventListener('click',()=>ivHForm(container,b.closest('.iv-card').querySelector('[data-hadd]').dataset.hadd,b.dataset.hedit)));
   container.querySelectorAll('[data-hdel]').forEach(b=>b.addEventListener('click',()=>{ const p=state.investmentProducts.find(x=>x.id===b.closest('.iv-card').querySelector('[data-hadd]').dataset.hadd); p.holdings=p.holdings.filter(h=>h.id!==b.dataset.hdel); if(p.holdings.length){ p.currentValue=ivHSum(p); p.valueLog.push({date:todayISO(),value:p.currentValue}); } ivSave('Subdivisão removida.'); }));
+  container.querySelectorAll('[data-rdel]').forEach(b=>b.addEventListener('click',()=>{ const p=state.investmentProducts.find(x=>x.id===b.closest('.iv-card').querySelector('[data-hadd]').dataset.hadd); const r=p.reforcos.find(x=>x.id===b.dataset.rdel); if(r){ p.currentValue=Math.max(0,(Number(p.currentValue)||0)-(Number(r.amount)||0)); p.reforcos=p.reforcos.filter(x=>x!==r); p.valueLog.push({date:todayISO(),value:p.currentValue}); } ivSave('Reforço removido.'); }));
   container.querySelectorAll('[data-edit-invest]').forEach(b=>b.addEventListener('click',()=>ivStartEdit(b.dataset.editInvest)));
   container.querySelectorAll('[data-ivreg]').forEach(b=>b.addEventListener('click',()=>ivPop(container,b.dataset.ivreg,'reg')));
   container.querySelectorAll('[data-ivval]').forEach(b=>b.addEventListener('click',()=>ivPop(container,b.dataset.ivval,'val')));
