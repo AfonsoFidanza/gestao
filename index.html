@@ -6314,6 +6314,7 @@ function renderTransferencias(){
         const tpl = state.recurring.find(x=>x.id===t.templateId);
         if(tpl){ tpl.skippedMonths = tpl.skippedMonths || []; const m = t.date.slice(0,7); if(!tpl.skippedMonths.includes(m)) tpl.skippedMonths.push(m); }
       }
+      if(t && t.prodAdj && t.fromSub){ const pr=state.investmentProducts.find(x=>'p:'+x.id===t.fromSub); if(pr) pr.currentValue=(Number(pr.currentValue)||0)+(Number(t.amount)||0); }
       state.transfers = state.transfers.filter(x=>x.id !== id);
       saveState(); renderAll(); showToast('Transferência removida.');
     });
@@ -9434,7 +9435,7 @@ function refreshXSubs(){
     const [o,t]=(sel.value||'').split('_');
     if(t!=='poupanca'){ sub.style.display='none'; sub.innerHTML=''; return; }
     const rows=savingsBreakdown(o).rows;
-    if(rows.length<2 && !(state.savingsSubs||[]).some(x=>x.owner===o)){ sub.style.display='none'; sub.innerHTML=''; return; }
+    if(rows.length<2 && !(state.savingsSubs||[]).some(x=>x.owner===o) && !rows.some(r=>r.kind==='prod')){ sub.style.display='none'; sub.innerHTML=''; return; }
     const keep=sub.value;
     sub.innerHTML=rows.map(r=>`<option value="${r.id}">${escapeHtml(r.name)} - ${fmtMoney(r.amount)}</option>`).join('');
     if(rows.some(r=>r.id===keep)) sub.value=keep;
@@ -9469,6 +9470,7 @@ document.getElementById('form-transferencia').addEventListener('submit', (ev)=>{
   const transfer = { id: uid(), date:data, fromOwner, fromType, toOwner, toType, amount:valor, desc };
   if(fromSub) transfer.fromSub = fromSub; if(toSub) transfer.toSub = toSub;
   state.transfers.push(transfer);
+  if(fromSub && String(fromSub).indexOf('p:')===0 && fromType==='poupanca'){ const pr=state.investmentProducts.find(x=>'p:'+x.id===fromSub); if(pr){ pr.currentValue=Math.max(0,(Number(pr.currentValue)||0)-valor); transfer.prodAdj=true; } }
   saveState();
   document.getElementById('x-valor').value = '';
   document.getElementById('x-desc').value = '';
